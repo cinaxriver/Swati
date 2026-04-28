@@ -1,0 +1,33 @@
+{
+  "name": "@swati/core",
+  "version": "0.1.0",
+  "description": "vanilla",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./adapters": "./dist/adapters/index.js",
+    "./interfaces": "./dist/interfaces/index.js",
+    "./interfaces/transport": "./dist/interfaces/transport.js",
+    "./interfaces/resolver": "./dist/interfaces/resolver.js",
+    "./interfaces/storage": "./dist/interfaces/storage.js",
+    "./interfaces/gate": "./dist/interfaces/gate.js",
+    "./interfaces/llm": "./dist/interfaces/llm.js",
+    "./config": "./dist/config.js"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/adapters/index.ts src/interfaces/index.ts src/config.ts --format esm --dts --out-dir dist",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^2.1.0",
+    "@noble/hashes": "^1.4.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0"
+  }
+}
