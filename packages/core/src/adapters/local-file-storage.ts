@@ -69,6 +69,33 @@ export class LocalFileStorage implements Storage {
       return err("STORAGE_READ_FAILED", "Failed to read log snapshot", cause);
     }
   }
+
+  async putSource(
+    bytes: Uint8Array,
+  ): Promise<Result<{ uri: string; hash: string }>> {
+    try {
+      const hashBytes = sha256(bytes);
+      const hash = toHex(hashBytes);
+      const filePath = join(this.basePath, "sources", `${hash}.choreo.ts`);
+      mkdirSync(join(this.basePath, "sources"), { recursive: true });
+      writeFileSync(filePath, bytes);
+      return ok({ uri: `file://${filePath}`, hash: `sha256:${hash}` });
+    } catch (cause) {
+      return err("STORAGE_WRITE_FAILED", "Failed to write source", cause);
+    }
+  }
+
+  async getSource(uri: string): Promise<Result<Uint8Array>> {
+    try {
+      const filePath = uri.replace(/^file:\/\//, "");
+      if (!existsSync(filePath)) {
+        return err("STORAGE_NOT_FOUND", `Source not found: ${uri}`);
+      }
+      return ok(new Uint8Array(readFileSync(filePath)));
+    } catch (cause) {
+      return err("STORAGE_READ_FAILED", "Failed to read source", cause);
+    }
+  }
 }
 
 function toHex(buf: Uint8Array): string {

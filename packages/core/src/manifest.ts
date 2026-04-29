@@ -9,6 +9,7 @@ export function deriveManifest(
     version?: string;
     plugins?: string[];
     sourceHash?: string;
+    sourceUri?: string;
   },
 ): Manifest {
   const roles = [...choreo.roles];
@@ -23,7 +24,7 @@ export function deriveManifest(
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 
-  return {
+  const manifest: Manifest = {
     id: `swati:${id}/${choreo.name}`,
     name: choreo.name,
     version,
@@ -32,4 +33,10 @@ export function deriveManifest(
     sourceHash: opts?.sourceHash ?? "",
     publishedAt,
   };
+
+  if (opts?.sourceUri !== undefined) {
+    manifest.sourceUri = opts.sourceUri;
+  }
+
+  return manifest;
 }

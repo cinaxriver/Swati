@@ -1,5 +1,6 @@
 import { AppendLog } from "./log.js";
 import { contextFactory } from "./dsl.js";
+import { sign, verify, pubkeyToHex, hexToPubkey } from "./identity.js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ChoreographyDef, ChoreoContext, RoleHandle } from "./dsl.js";
@@ -13,10 +14,13 @@ import { ok, err } from "./types.js";
 
 const PING_INTERVAL_MS = 5_000;
 const PEER_TIMEOUT_MS = 30_000;
+const ATTEST_RETRY_MS = 5_000;
+const ATTEST_MAX_WAIT_MS = 5 * 60_000;
 const LOG_SNAPSHOT_EVERY_N_ACTS = 20;
 
 export interface ConductorConfig {
   choreography: ChoreographyDef;
+  choreoId?: string;
   role: RoleName;
   identity: Identity;
   transport: Transport;
@@ -35,19 +39,29 @@ interface PendingOp {
 
 export class Conductor {
   private readonly cfg: ConductorConfig;
+  private readonly choreoId: string;
   private readonly log: AppendLog;
   private readonly pendingOps: Map<string, PendingOp> = new Map();
   private readonly sharedState: Map<string, unknown> = new Map();
+
+  private readonly transportIdToRole: Map<string, RoleName> = new Map();
   private readonly lastPeerId: Map<RoleName, number> = new Map();
+  private readonly peerTimedOut: Set<RoleName> = new Set();
+
+  private readonly pendingAttests: Map<RoleName, (choreoId: string) => void> =
+    new Map();
+  private readonly attestBuffer: Map<RoleName, string> = new Map();
   private actCount = 0;
 
   constructor(cfg: ConductorConfig) {
     this.cfg = cfg;
-    const choreoId = cfg.choreography.name;
+    this.choreoId = cfg.choreoId ?? cfg.choreography.name;
     const logDir =
       cfg.logPath ??
       join(process.env["SWATI_HOME"] ?? join(homedir(), ".swati"), "logs");
-    this.log = new AppendLog(join(logDir, `${choreoId}-${cfg.role}.jsonl`));
+    this.log = new AppendLog(
+      join(logDir, `${cfg.choreography.name}-${cfg.role}.jsonl`),
+    );
   }
 
   async run(input: unknown): Promise<Result<unknown>> {
@@ -57,28 +71,35 @@ export class Conductor {
     const pingDone = this.startPinging();
 
     let result: Result<unknown> = ok(undefined);
+    let recurseInput: { value: unknown } | null = null;
     try {
+      await this.runAttestation();
+
       const context = this.makeContext(input);
       const output = await choreography.flow(context);
       result = ok(output);
     } catch (cause) {
       if ((cause as { __recurse?: boolean }).__recurse) {
-        recvDone();
-        pingDone();
-        await this.snapshotLog();
-        const newInput = (cause as { __input: unknown }).__input;
-        await transport.close();
-        return this.run(newInput);
+        recurseInput = { value: (cause as { __input: unknown }).__input };
+      } else if ((cause as { code?: string }).code === "CHOREO_MISMATCH") {
+        result = err("CHOREO_MISMATCH", (cause as Error).message);
+      } else {
+        result = err(
+          "CONDUCTOR_FAILED",
+          "Choreography flow threw an error",
+          cause,
+        );
       }
-      result = err(
-        "CONDUCTOR_FAILED",
-        "Choreography flow threw an error",
-        cause,
-      );
     } finally {
       recvDone();
       pingDone();
-      await this.snapshotLog();
+
+      await this.snapshotLog(true);
+    }
+
+    if (recurseInput !== null) {
+      await transport.close();
+      return this.run(recurseInput.value);
     }
 
     await this.log.append(identity, "ack", role, choreography.name, {
@@ -99,7 +120,7 @@ export class Conductor {
       gateProviders,
       llm,
     } = this.cfg;
-    const choreoId = choreography.name;
+    const choreoId = self.choreoId;
 
     const roleHandles: Record<RoleName, RoleHandle> = {};
     for (const r of choreography.roles) {
@@ -132,6 +153,7 @@ export class Conductor {
             to,
             actId: actResult.value.id,
             value,
+            choreoId,
           }),
         );
         await transport.send(resolved.value.transportId, bytes);
@@ -139,11 +161,28 @@ export class Conductor {
       }
 
       if (role === to) {
+        const key = `send:${from}:${to}`;
         return new Promise<T>((resolve, reject) => {
-          self.pendingOps.set(`send:${from}:${to}`, {
+          const timeoutId = setTimeout(() => {
+            self.pendingOps.delete(key);
+            reject(
+              new Error(
+                `Peer timeout: "${from}" did not send to "${to}" within ` +
+                  `${PEER_TIMEOUT_MS / 1000}s. Did role "${from}" crash or stall?`,
+              ),
+            );
+          }, PEER_TIMEOUT_MS);
+
+          self.pendingOps.set(key, {
             type: "send",
-            resolve: resolve as (v: unknown) => void,
-            reject,
+            resolve: (v: unknown) => {
+              clearTimeout(timeoutId);
+              (resolve as (v: unknown) => void)(v);
+            },
+            reject: (e: Error) => {
+              clearTimeout(timeoutId);
+              reject(e);
+            },
           });
         });
       }
@@ -189,17 +228,35 @@ export class Conductor {
             chooser: chooserRole,
             choice,
             actId: actResult.value.id,
+            choreoId,
           }),
         );
         await transport.broadcast(bytes);
         return choice;
       }
 
+      const key = `choose:${chooserRole}`;
       return new Promise<O>((resolve, reject) => {
-        self.pendingOps.set(`choose:${chooserRole}`, {
+        const timeoutId = setTimeout(() => {
+          self.pendingOps.delete(key);
+          reject(
+            new Error(
+              `Peer timeout: "${chooserRole}" did not broadcast a choice within ` +
+                `${PEER_TIMEOUT_MS / 1000}s. Did role "${chooserRole}" crash or stall?`,
+            ),
+          );
+        }, PEER_TIMEOUT_MS);
+
+        self.pendingOps.set(key, {
           type: "choose",
-          resolve: resolve as (v: unknown) => void,
-          reject,
+          resolve: (v: unknown) => {
+            clearTimeout(timeoutId);
+            (resolve as (v: unknown) => void)(v);
+          },
+          reject: (e: Error) => {
+            clearTimeout(timeoutId);
+            reject(e);
+          },
         });
       });
     };
@@ -241,6 +298,7 @@ export class Conductor {
           provider: providerName,
           success: result.ok,
           actId: actResult.value.id,
+          choreoId,
         }),
       );
       await transport.broadcast(bytes);
@@ -308,10 +366,70 @@ export class Conductor {
     const senderRole = this.findRoleByTransportId(from);
     if (senderRole) {
       this.lastPeerId.set(senderRole, Date.now());
+
+      this.peerTimedOut.delete(senderRole);
     }
 
     switch (envelope["kind"]) {
+      case "ping": {
+        const fromRole = String(envelope["from"]);
+        if (fromRole && fromRole !== this.cfg.role) {
+          this.transportIdToRole.set(from, fromRole);
+          this.lastPeerId.set(fromRole, Date.now());
+          this.peerTimedOut.delete(fromRole);
+        }
+        break;
+      }
+
+      case "attest": {
+        const attesterRole = String(envelope["role"]);
+        const attestedId = String(envelope["choreoId"]);
+        const attestPubHex = String(envelope["pubkey"]);
+        const attestSigHex = String(envelope["sig"]);
+
+        const attestBody = {
+          kind: "attest" as const,
+          role: attesterRole,
+          choreoId: attestedId,
+          pubkey: attestPubHex,
+        };
+        const valid = await verify(
+          hexToPubkey(attestPubHex),
+          hexToPubkey(attestSigHex),
+          attestBody,
+        );
+        if (!valid) break;
+
+        const resolved = await this.cfg.resolver.resolve(attesterRole);
+        if (resolved.ok && pubkeyToHex(resolved.value.pubkey) !== attestPubHex)
+          break;
+
+        const cb = this.pendingAttests.get(attesterRole);
+        if (cb) {
+          this.pendingAttests.delete(attesterRole);
+          cb(attestedId);
+        } else {
+          this.attestBuffer.set(attesterRole, attestedId);
+        }
+        break;
+      }
+
       case "send": {
+        const msgChoreoId = envelope["choreoId"] as string | undefined;
+        if (msgChoreoId && msgChoreoId !== this.choreoId) {
+          await this.log.append(
+            this.cfg.identity,
+            "ping",
+            this.cfg.role,
+            this.choreoId,
+            {
+              event: "choreo_mismatch",
+              expected: this.choreoId,
+              received: msgChoreoId,
+            },
+          );
+          break;
+        }
         const key = `send:${String(envelope["from"])}:${String(envelope["to"])}`;
         const pending = this.pendingOps.get(key);
         if (pending) {
@@ -321,6 +439,21 @@ export class Conductor {
         break;
       }
       case "choose": {
+        const msgChoreoId = envelope["choreoId"] as string | undefined;
+        if (msgChoreoId && msgChoreoId !== this.choreoId) {
+          await this.log.append(
+            this.cfg.identity,
+            "ping",
+            this.cfg.role,
+            this.choreoId,
+            {
+              event: "choreo_mismatch",
+              expected: this.choreoId,
+              received: msgChoreoId,
+            },
+          );
+          break;
+        }
         const key = `choose:${String(envelope["chooser"])}`;
         const pending = this.pendingOps.get(key);
         if (pending) {
@@ -332,8 +465,83 @@ export class Conductor {
     }
   }
 
-  private findRoleByTransportId(_transportId: string): RoleName | null {
-    return null;
+  private findRoleByTransportId(transportId: string): RoleName | null {
+    return this.transportIdToRole.get(transportId) ?? null;
+  }
+
+  private async runAttestation(): Promise<void> {
+    const { choreography, role, identity, transport } = this.cfg;
+    const otherRoles = choreography.roles.filter((r) => r !== role);
+    if (otherRoles.length === 0) return;
+
+    const attestBody = {
+      kind: "attest" as const,
+      role,
+      choreoId: this.choreoId,
+      pubkey: pubkeyToHex(identity.pubkey),
+    };
+    const sig = await sign(identity.privateKey, attestBody);
+    const attestBytes = new TextEncoder().encode(
+      JSON.stringify({ ...attestBody, sig: pubkeyToHex(sig) }),
+    );
+
+    const remaining = new Set(otherRoles);
+    const rejectors = new Map<RoleName, (e: Error) => void>();
+
+    const attestPromises = otherRoles.map((peerRole) => {
+      if (this.attestBuffer.has(peerRole)) {
+        const id = this.attestBuffer.get(peerRole)!;
+        this.attestBuffer.delete(peerRole);
+        remaining.delete(peerRole);
+        return Promise.resolve(id);
+      }
+      return new Promise<string>((resolve, reject) => {
+        rejectors.set(peerRole, reject);
+        this.pendingAttests.set(peerRole, (id: string) => {
+          remaining.delete(peerRole);
+          rejectors.delete(peerRole);
+          resolve(id);
+        });
+      });
+    });
+
+    const deadlineTimer = setTimeout(() => {
+      const missing = [...remaining].map((r) => `"${r}"`).join(", ");
+      const msg =
+        `Attestation deadline (${ATTEST_MAX_WAIT_MS / 1000}s) exceeded. ` +
+        `Roles still pending: ${missing}. ` +
+        `Are they online and running the same choreography?`;
+      for (const reject of rejectors.values()) reject(new Error(msg));
+    }, ATTEST_MAX_WAIT_MS);
+
+    const retryTimer = setInterval(async () => {
+      if (remaining.size > 0) await transport.broadcast(attestBytes);
+    }, ATTEST_RETRY_MS);
+
+    await transport.broadcast(attestBytes);
+
+    try {
+      const receivedIds = await Promise.all(attestPromises);
+
+      for (let i = 0; i < otherRoles.length; i++) {
+        if (receivedIds[i] !== this.choreoId) {
+          throw Object.assign(
+            new Error(
+              `CHOREOGRAPHY MISMATCH: role "${otherRoles[i]}" is running ` +
+                `"${receivedIds[i]}" but this conductor expects "${this.choreoId}". ` +
+                `All peers must run the same choreography version (same source hash).`,
+            ),
+            { code: "CHOREO_MISMATCH" },
+          );
+        }
+      }
+    } finally {
+      clearTimeout(deadlineTimer);
+      clearInterval(retryTimer);
+
+      this.pendingAttests.clear();
+      this.attestBuffer.clear();
+    }
   }
 
   private startPinging(): () => void {
@@ -347,13 +555,17 @@ export class Conductor {
       await this.cfg.transport.broadcast(bytes);
 
       for (const [peerRole, lastSeen] of this.lastPeerId.entries()) {
-        if (Date.now() - lastSeen > PEER_TIMEOUT_MS) {
+        if (
+          Date.now() - lastSeen > PEER_TIMEOUT_MS &&
+          !this.peerTimedOut.has(peerRole)
+        ) {
+          this.peerTimedOut.add(peerRole);
           await this.log.append(
             this.cfg.identity,
             "ping",
             this.cfg.role,
             this.cfg.choreography.name,
-            { event: "peer_timeout", peer: peerRole },
+            { event: "peer_timeout", peer: peerRole, lastSeen },
           );
         }
       }
@@ -365,8 +577,8 @@ export class Conductor {
     };
   }
 
-  private async snapshotLog(): Promise<void> {
-    if (this.actCount < LOG_SNAPSHOT_EVERY_N_ACTS) return;
+  private async snapshotLog(force = false): Promise<void> {
+    if (!force && this.actCount < LOG_SNAPSHOT_EVERY_N_ACTS) return;
     await this.cfg.storage.putLogSnapshot(
       this.cfg.choreography.name,
       this.cfg.role,

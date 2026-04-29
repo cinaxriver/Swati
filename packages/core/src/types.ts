@@ -54,9 +54,13 @@ export interface Manifest {
   version: string;
   roles: readonly RoleName[];
   plugins: readonly string[];
+
   sourceHash: string;
-  publishedAt: number;
+
+  sourceUri?: string;
+
   storageUri?: string;
+  publishedAt: number;
 }
 
 export interface Identity {
