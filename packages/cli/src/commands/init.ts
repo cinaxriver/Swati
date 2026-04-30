@@ -13,6 +13,8 @@ export async function runInit(options: { name?: string }): Promise<void> {
   const vanillaConfig = `import { defineConfig } from "@swati/core/config";
 import { InMemoryTransport, StaticResolver, LocalFileStorage, LocalGate, MockLLM } from "@swati/core/adapters";
 
+// Vanilla config — no external services needed.
+// Swap adapters in swati.config.ts for production.
 export default defineConfig({
   transport: new InMemoryTransport(),
   resolver: new StaticResolver("./identities.json"),

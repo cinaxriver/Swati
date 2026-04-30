@@ -9,6 +9,7 @@ import { runVerify } from "./commands/verify.js";
 import { runJoin } from "./commands/join.js";
 import { runWatch } from "./commands/watch.js";
 import { runMint } from "./commands/mint.js";
+import { runVisualize } from "./commands/visualize.js";
 
 const program = new Command();
 
@@ -123,6 +124,20 @@ program
   .action(async (opts: { score: string; role?: string; config?: string }) => {
     await runWatch(opts);
   });
+
+program
+  .command("visualize")
+  .description(
+    "Visualize the choreography flow as ASCII art or Mermaid diagram",
+  )
+  .requiredOption("--score <file>", "path to .choreo.ts choreography file")
+  .option("--format <type>", "output format: 'ascii' or 'mermaid'", "ascii")
+  .option("--mermaid-out <file>", "export mermaid diagram to file")
+  .action(
+    async (opts: { score: string; format?: string; mermaidOut?: string }) => {
+      await runVisualize(opts);
+    },
+  );
 
 program
   .command("mint <uri>")
