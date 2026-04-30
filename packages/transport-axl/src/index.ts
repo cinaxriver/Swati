@@ -9,8 +9,6 @@ export interface AxlTransportConfig {
   endpoint?: string;
   knownPeers?: string[];
 }
- 
-// AAAAAAGHR 
 
 export class AxlTransport implements Transport {
   private readonly client: AxlHttpClient;

@@ -41,13 +41,14 @@ export class AxlHttpClient {
       res = await fetch(`${this.endpoint}/topology`);
     } catch (cause) {
       throw new Error(
-        `AXL daemon unreachable at ${this.endpoint}. ` +
-          `Is it running? `,
+        `AXL daemon unreachable at ${this.endpoint}. ` + `Is it running? `,
         { cause },
       );
     }
     if (!res.ok) {
-      throw new Error(`axls /topology returned ${res.status} ${res.statusText}`);
+      throw new Error(
+        `axls /topology returned ${res.status} ${res.statusText}`,
+      );
     }
     return res.json() as Promise<AxlTopology>;
   }
@@ -81,8 +82,7 @@ export class AxlHttpClient {
         const topo = await this.getTopology();
         const count = (topo.peers ?? []).filter((p) => p.up).length;
         if (count >= minCount) return;
-      } catch {
-      }
+      } catch {}
       await sleep(intervalMs);
     }
     console.warn(
@@ -103,8 +103,7 @@ export class AxlHttpClient {
       });
     } catch (cause) {
       throw new Error(
-        `AXL daemon unreachable at ${this.endpoint}. ` +
-          `Is it running? `,
+        `AXL daemon unreachable at ${this.endpoint}. ` + `Is it running? `,
         { cause },
       );
     }
