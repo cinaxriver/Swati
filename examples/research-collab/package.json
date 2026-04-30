@@ -1,0 +1,16 @@
+{
+  "name": "@swati/example-research-collab",
+  "version": "0.1.0",
+  "description": "Research collaboration choreography example",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "run:researcher": "swati run --role researcher --score ./score.choreo.ts --config ./swati.config.vanilla.ts",
+    "run:critic":     "swati run --role critic     --score ./score.choreo.ts --config ./swati.config.vanilla.ts",
+    "run:executor":   "swati run --role executor   --score ./score.choreo.ts --config ./swati.config.vanilla.ts"
+  },
+  "dependencies": {
+    "@swati/core": "workspace:*",
+    "@swati/transport-axl": "workspace:*"
+  }
+}
