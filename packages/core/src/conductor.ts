@@ -128,10 +128,17 @@ export class Conductor {
     }
 
     const send = async <T>(
-      value: T,
+      value: T | import("./dsl.js").Located<T>,
       from: RoleName,
       to: RoleName,
     ): Promise<T> => {
+      const actualValue: T =
+        value !== null &&
+        typeof value === "object" &&
+        "__locatedValue" in (value as object)
+          ? (value as import("./dsl.js").Located<T>).__locatedValue
+          : (value as T);
+
       if (role === from) {
         const resolved = await resolver.resolve(to);
         if (!resolved.ok) throw new Error(resolved.error.message);
@@ -141,7 +148,7 @@ export class Conductor {
           "send",
           role,
           choreoId,
-          { from, to, value },
+          { from, to, value: actualValue },
         );
         if (!actResult.ok) throw new Error(actResult.error.message);
         self.actCount++;
@@ -152,12 +159,12 @@ export class Conductor {
             from,
             to,
             actId: actResult.value.id,
-            value,
+            value: actualValue,
             choreoId,
           }),
         );
         await transport.send(resolved.value.transportId, bytes);
-        return value;
+        return actualValue;
       }
 
       if (role === to) {
@@ -190,10 +197,43 @@ export class Conductor {
       return undefined as unknown as T;
     };
 
+    const locally = async <T>(
+      localRole: RoleName,
+      fn: () => Promise<T> | T,
+    ): Promise<import("./dsl.js").Located<T>> => {
+      if (role === localRole) {
+        const value = await fn();
+        const actResult = await self.log.append(
+          identity,
+          "do",
+          role,
+          choreoId,
+          { locally: localRole },
+        );
+        if (!actResult.ok) throw new Error(actResult.error.message);
+        self.actCount++;
+        return { __locatedRole: localRole, __locatedValue: value };
+      }
+      return {
+        __locatedRole: localRole,
+        __locatedValue: undefined as unknown as T,
+      };
+    };
+
+    const computeSend = async <T>(
+      from: RoleName,
+      to: RoleName,
+      fn: () => Promise<T> | T,
+    ): Promise<T> => {
+      const loc = await locally(from, fn);
+      return send(loc, from, to);
+    };
+
     const choose = async <O extends string>(
       chooserRole: RoleName,
       options: readonly O[],
       evidence: unknown,
+      participants?: RoleName[],
     ): Promise<O> => {
       if (role === chooserRole) {
         const prompt =
@@ -231,8 +271,25 @@ export class Conductor {
             choreoId,
           }),
         );
-        await transport.broadcast(bytes);
+
+        if (participants && participants.length > 0) {
+          await Promise.all(
+            participants
+              .filter((p) => p !== role)
+              .map(async (p) => {
+                const resolved = await resolver.resolve(p);
+                if (resolved.ok)
+                  await transport.send(resolved.value.transportId, bytes);
+              }),
+          );
+        } else {
+          await transport.broadcast(bytes);
+        }
         return choice;
+      }
+
+      if (participants && !participants.includes(role)) {
+        return options[0] as O;
       }
 
       const key = `choose:${chooserRole}`;
@@ -252,6 +309,65 @@ export class Conductor {
           resolve: (v: unknown) => {
             clearTimeout(timeoutId);
             (resolve as (v: unknown) => void)(v);
+          },
+          reject: (e: Error) => {
+            clearTimeout(timeoutId);
+            reject(e);
+          },
+        });
+      });
+    };
+
+    const chooseIf = async (
+      choiceRole: RoleName,
+      condition: boolean,
+    ): Promise<boolean> => {
+      if (role === choiceRole) {
+        const choice = condition ? "true" : "false";
+        const actResult = await self.log.append(
+          identity,
+          "choose",
+          role,
+          choreoId,
+          {
+            chooser: choiceRole,
+            choice,
+            options: ["true", "false"],
+          },
+        );
+        if (!actResult.ok) throw new Error(actResult.error.message);
+        self.actCount++;
+
+        const bytes = new TextEncoder().encode(
+          JSON.stringify({
+            kind: "choose",
+            chooser: choiceRole,
+            choice,
+            actId: actResult.value.id,
+            choreoId,
+          }),
+        );
+        await transport.broadcast(bytes);
+        return condition;
+      }
+
+      const key = `choose:${choiceRole}`;
+      return new Promise<boolean>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          self.pendingOps.delete(key);
+          reject(
+            new Error(
+              `Peer timeout: "${choiceRole}" did not broadcast chooseIf within ` +
+                `${PEER_TIMEOUT_MS / 1000}s.`,
+            ),
+          );
+        }, PEER_TIMEOUT_MS);
+
+        self.pendingOps.set(key, {
+          type: "choose",
+          resolve: (v: unknown) => {
+            clearTimeout(timeoutId);
+            resolve(v === "true");
           },
           reject: (e: Error) => {
             clearTimeout(timeoutId);
@@ -333,6 +449,9 @@ export class Conductor {
       roles: roleHandles,
       send,
       choose,
+      chooseIf,
+      locally,
+      computeSend,
       gate,
       persist,
       recall,

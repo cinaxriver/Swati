@@ -1,5 +1,13 @@
-export { choreography } from "./dsl.js";
-export type { ChoreographyDef, ChoreoContext, RoleHandle } from "./dsl.js";
+export { choreography, located, unwrapLocated } from "./dsl.js";
+export type {
+  ChoreographyDef,
+  ChoreoContext,
+  RoleHandle,
+  Located,
+} from "./dsl.js";
+
+export { simulate } from "./simulate.js";
+export type { SimulateOptions } from "./simulate.js";
 
 export { Conductor } from "./conductor.js";
 export type { ConductorConfig } from "./conductor.js";

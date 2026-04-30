@@ -1,6 +1,26 @@
 import type { RoleName, Result } from "./types.js";
 import type { LLMClient } from "./interfaces/llm.js";
 
+export type Located<T, Role extends string = string> = {
+  readonly __locatedRole: Role;
+  readonly __locatedValue: T;
+};
+
+export function located<T, R extends string>(role: R, value: T): Located<T, R> {
+  return { __locatedRole: role, __locatedValue: value };
+}
+
+export function unwrapLocated<T>(v: Located<T> | T): T {
+  if (
+    v !== null &&
+    typeof v === "object" &&
+    "__locatedValue" in (v as object)
+  ) {
+    return (v as Located<T>).__locatedValue;
+  }
+  return v as T;
+}
+
 export interface RoleHandle {
   do(
     prompt: string,
@@ -12,13 +32,24 @@ export interface ChoreoContext<I = unknown> {
   input: I;
   roles: Record<RoleName, RoleHandle>;
 
-  send<T>(value: T, from: RoleName, to: RoleName): Promise<T>;
+  send<T>(value: T | Located<T>, from: RoleName, to: RoleName): Promise<T>;
 
   choose<O extends string>(
     role: RoleName,
     options: readonly O[],
     evidence: unknown,
+    participants?: RoleName[],
   ): Promise<O>;
+
+  chooseIf(role: RoleName, condition: boolean): Promise<boolean>;
+
+  locally<T>(role: RoleName, fn: () => Promise<T> | T): Promise<Located<T>>;
+
+  computeSend<T>(
+    from: RoleName,
+    to: RoleName,
+    fn: () => Promise<T> | T,
+  ): Promise<T>;
 
   gate(
     role: RoleName,
