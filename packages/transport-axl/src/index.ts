@@ -3,11 +3,14 @@ import type { Transport } from "@swati/core/interfaces";
 import type { Result } from "@swati/core";
 import { ok, err } from "@swati/core";
 
-const POLL_INTERVAL_MS = 100;
+const POLL_INTERVAL_MS = 200;
 
 export interface AxlTransportConfig {
   endpoint?: string;
+  knownPeers?: string[];
 }
+ 
+// AAAAAAGHR 
 
 export class AxlTransport implements Transport {
   private readonly client: AxlHttpClient;
@@ -16,11 +19,13 @@ export class AxlTransport implements Transport {
   private readonly messageQueue: Array<{ from: string; bytes: Uint8Array }> =
     [];
   private wakeResolve: (() => void) | null = null;
+  private readonly knownPeers: string[];
 
   constructor(cfg: AxlTransportConfig = {}) {
     const endpoint =
       cfg.endpoint ?? process.env["AXL_ENDPOINT"] ?? "http://localhost:9002";
     this.client = new AxlHttpClient(endpoint);
+    this.knownPeers = cfg.knownPeers ?? [];
     this.startPolling();
   }
 
@@ -56,11 +61,17 @@ export class AxlTransport implements Transport {
       );
     }
 
-    const activePeers = topology.peers.filter((p) => p.up);
+    const activePeers = (topology.peers ?? [])
+      .filter((p) => p.up)
+      .map((p) => p.public_key);
+    const allTargets = Array.from(
+      new Set([...activePeers, ...this.knownPeers]),
+    );
+
+    const targets = allTargets.filter((p) => p !== topology.our_public_key);
+
     await Promise.all(
-      activePeers.map((p) =>
-        this.client.sendMessage(p.public_key, bytes).catch(() => {}),
-      ),
+      targets.map((p) => this.client.sendMessage(p, bytes).catch(() => {})),
     );
     return ok(undefined);
   }
@@ -95,6 +106,14 @@ export class AxlTransport implements Transport {
     this.closed = true;
     this.wakeResolve?.();
     this.wakeResolve = null;
+  }
+
+  async waitForReady(): Promise<void> {
+    return this.client.waitForReady();
+  }
+
+  async waitForPeers(minCount: number): Promise<void> {
+    return this.client.waitForPeers(minCount);
   }
 
   private startPolling(): void {

@@ -14,18 +14,26 @@ export class InMemoryTransport implements Transport {
     (msg: { from: string; bytes: Uint8Array }) => void
   > = [];
 
+  private readonly listener: (envelope: {
+    to: string;
+    from: string;
+    bytes: Uint8Array;
+  }) => void;
+
   constructor(id?: string) {
     this.id = id ?? `mem-node-${++idCounter}`;
-    BUS.on(
-      "swati:msg",
-      (envelope: { to: string; from: string; bytes: Uint8Array }) => {
-        if (envelope.to === this.id || envelope.to === "*") {
-          for (const fn of this.listeners) {
-            fn({ from: envelope.from, bytes: envelope.bytes });
-          }
+    this.listener = (envelope: {
+      to: string;
+      from: string;
+      bytes: Uint8Array;
+    }) => {
+      if (envelope.to === this.id || envelope.to === "*") {
+        for (const fn of this.listeners) {
+          fn({ from: envelope.from, bytes: envelope.bytes });
         }
-      },
-    );
+      }
+    };
+    BUS.on("swati:msg", this.listener);
   }
 
   async selfId(): Promise<string> {
@@ -80,7 +88,7 @@ export class InMemoryTransport implements Transport {
   }
 
   async close(): Promise<void> {
-    BUS.removeAllListeners("swati:msg");
+    BUS.removeListener("swati:msg", this.listener);
   }
 
   static reset(): void {
