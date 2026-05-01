@@ -82,6 +82,32 @@ export function choreography<I = unknown, O = unknown>(
   return { name, ...spec };
 }
 
+export function polymorphicChoreography<
+  const RoleKeys extends readonly string[],
+  I = unknown,
+  O = unknown,
+>(
+  roleKeys: RoleKeys,
+  makeSpec: (roles: { readonly [K in RoleKeys[number]]: K }) => {
+    flow: (c: ChoreoContext<I>) => Promise<O>;
+  },
+): (...roleNames: string[]) => ChoreographyDef<I, O> {
+  return (...roleNames: string[]): ChoreographyDef<I, O> => {
+    const rolesObj = Object.fromEntries(
+      roleKeys.map((k, i) => [k, roleNames[i] ?? k]),
+    ) as { readonly [K in RoleKeys[number]]: K };
+
+    const spec = makeSpec(rolesObj);
+    const name = roleNames.join("-");
+
+    return {
+      name,
+      roles: roleNames as unknown as readonly RoleName[],
+      flow: spec.flow,
+    };
+  };
+}
+
 export interface PendingRecv {
   from: RoleName;
   to: RoleName;

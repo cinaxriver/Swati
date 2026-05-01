@@ -39,6 +39,9 @@ export interface SimulateOptions<I = unknown> {
   gateProviders?: Record<string, GateProvider>;
   storage?: Storage;
   llms?: Record<RoleName, LLMClient>;
+  peerTimeoutMs?: number;
+  attestMaxWaitMs?: number;
+  attestRetryMs?: number;
 }
 
 export async function simulate<I = unknown, O = unknown>(
@@ -79,6 +82,15 @@ export async function simulate<I = unknown, O = unknown>(
         gateProviders: gates,
         llm,
         logPath,
+        ...(opts.peerTimeoutMs !== undefined
+          ? { peerTimeoutMs: opts.peerTimeoutMs }
+          : {}),
+        ...(opts.attestMaxWaitMs !== undefined
+          ? { attestMaxWaitMs: opts.attestMaxWaitMs }
+          : {}),
+        ...(opts.attestRetryMs !== undefined
+          ? { attestRetryMs: opts.attestRetryMs }
+          : {}),
       }).run(opts.input) as Promise<Result<O>>;
     }),
   );
@@ -86,4 +98,54 @@ export async function simulate<I = unknown, O = unknown>(
   await Promise.all(transports.map((t) => t.close()));
 
   return Object.fromEntries(roles.map((r, i) => [r, results[i]!]));
+}
+
+export async function simulateRole<I = unknown, O = unknown>(
+  choreo: ChoreographyDef<I, O>,
+  role: RoleName,
+  opts: SimulateOptions<I>,
+): Promise<Result<O>> {
+  const results = await simulate(choreo, opts);
+  const r = results[role];
+  if (r === undefined) {
+    return err(
+      "ROLE_NOT_FOUND",
+      `Role "${role}" is not declared in choreography "${choreo.name}"`,
+    );
+  }
+  return r;
+}
+
+export async function assertNoDeadlock<I = unknown>(
+  choreo: ChoreographyDef<I, unknown>,
+  opts: SimulateOptions<I> & { deadlockTimeoutMs?: number },
+): Promise<void> {
+  const timeoutMs = opts.deadlockTimeoutMs ?? 5_000;
+  const results = await simulate(choreo, {
+    ...opts,
+    peerTimeoutMs: opts.peerTimeoutMs ?? timeoutMs,
+    attestMaxWaitMs: opts.attestMaxWaitMs ?? timeoutMs,
+    attestRetryMs: opts.attestRetryMs ?? 200,
+  });
+
+  const failures: string[] = [];
+  for (const [role, result] of Object.entries(results)) {
+    if (!result.ok) {
+      const code = result.error.code;
+      if (
+        code === "PEER_TIMEOUT" ||
+        code === "CONDUCTOR_FAILED" ||
+        code === "CHOREO_MISMATCH"
+      ) {
+        failures.push(`[${role}] ${code}: ${result.error.message}`);
+      }
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(
+      `assertNoDeadlock failed — choreography "${choreo.name}" timed out or crashed:\n` +
+        failures.map((f) => `  ${f}`).join("\n"),
+    );
+  }
 }
