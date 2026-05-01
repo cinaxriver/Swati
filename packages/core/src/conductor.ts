@@ -21,6 +21,7 @@ const LOG_SNAPSHOT_EVERY_N_ACTS = 20;
 export interface ConductorConfig {
   choreography: ChoreographyDef;
   choreoId?: string;
+  runId?: string;
   role: RoleName;
   identity: Identity;
   transport: Transport;
@@ -32,6 +33,7 @@ export interface ConductorConfig {
   peerTimeoutMs?: number;
   attestMaxWaitMs?: number;
   attestRetryMs?: number;
+  ownTransport?: boolean;
 }
 
 interface PendingOp {
@@ -60,6 +62,9 @@ export class Conductor {
   private readonly peerTimeoutMs: number;
   private readonly attestMaxWaitMs: number;
   private readonly attestRetryMs: number;
+  private readonly runId: string;
+  private outSeq = 0;
+  private readonly lastSeenSeq = new Map<string, number>();
 
   constructor(cfg: ConductorConfig) {
     this.cfg = cfg;
@@ -67,11 +72,14 @@ export class Conductor {
     this.peerTimeoutMs = cfg.peerTimeoutMs ?? PEER_TIMEOUT_MS;
     this.attestMaxWaitMs = cfg.attestMaxWaitMs ?? ATTEST_MAX_WAIT_MS;
     this.attestRetryMs = cfg.attestRetryMs ?? ATTEST_RETRY_MS;
+    this.runId =
+      cfg.runId ??
+      Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const logDir =
       cfg.logPath ??
       join(process.env["SWATI_HOME"] ?? join(homedir(), ".swati"), "logs");
     this.log = new AppendLog(
-      join(logDir, `${cfg.choreography.name}-${cfg.role}.jsonl`),
+      join(logDir, `${cfg.choreography.name}-${cfg.role}-${this.runId}.jsonl`),
     );
   }
 
@@ -109,7 +117,7 @@ export class Conductor {
     }
 
     if (recurseInput !== null) {
-      await transport.close();
+      if (this.cfg.ownTransport !== false) await transport.close();
       return this.run(recurseInput.value);
     }
 
@@ -164,15 +172,19 @@ export class Conductor {
         if (!actResult.ok) throw new Error(actResult.error.message);
         self.actCount++;
 
+        const seq = ++self.outSeq;
+        const envelope = {
+          kind: "send" as const,
+          from,
+          to,
+          actId: actResult.value.id,
+          value: actualValue,
+          choreoId,
+          seq,
+        };
+        const sig = await sign(identity.privateKey, envelope);
         const bytes = new TextEncoder().encode(
-          JSON.stringify({
-            kind: "send",
-            from,
-            to,
-            actId: actResult.value.id,
-            value: actualValue,
-            choreoId,
-          }),
+          JSON.stringify({ ...envelope, sig: pubkeyToHex(sig) }),
         );
         await transport.send(resolved.value.transportId, bytes);
         return actualValue;
@@ -280,14 +292,18 @@ export class Conductor {
         if (!actResult.ok) throw new Error(actResult.error.message);
         self.actCount++;
 
+        const seq = ++self.outSeq;
+        const chooseEnvelope = {
+          kind: "choose" as const,
+          chooser: chooserRole,
+          choice,
+          actId: actResult.value.id,
+          choreoId,
+          seq,
+        };
+        const chooseSig = await sign(identity.privateKey, chooseEnvelope);
         const bytes = new TextEncoder().encode(
-          JSON.stringify({
-            kind: "choose",
-            chooser: chooserRole,
-            choice,
-            actId: actResult.value.id,
-            choreoId,
-          }),
+          JSON.stringify({ ...chooseEnvelope, sig: pubkeyToHex(chooseSig) }),
         );
 
         if (participants && participants.length > 0) {
@@ -362,14 +378,18 @@ export class Conductor {
         if (!actResult.ok) throw new Error(actResult.error.message);
         self.actCount++;
 
+        const seq = ++self.outSeq;
+        const ifEnvelope = {
+          kind: "choose" as const,
+          chooser: choiceRole,
+          choice,
+          actId: actResult.value.id,
+          choreoId,
+          seq,
+        };
+        const ifSig = await sign(identity.privateKey, ifEnvelope);
         const bytes = new TextEncoder().encode(
-          JSON.stringify({
-            kind: "choose",
-            chooser: choiceRole,
-            choice,
-            actId: actResult.value.id,
-            choreoId,
-          }),
+          JSON.stringify({ ...ifEnvelope, sig: pubkeyToHex(ifSig) }),
         );
         await transport.broadcast(bytes);
         return condition;
@@ -592,6 +612,28 @@ export class Conductor {
           );
           break;
         }
+
+        const senderRole = String(envelope["from"]);
+        const seq = envelope["seq"] as number | undefined;
+        if (seq !== undefined) {
+          const last = this.lastSeenSeq.get(senderRole) ?? -1;
+          if (seq <= last) break;
+          this.lastSeenSeq.set(senderRole, seq);
+        }
+
+        const sigHex = envelope["sig"] as string | undefined;
+        if (sigHex) {
+          const resolved = await this.cfg.resolver.resolve(senderRole);
+          if (resolved.ok) {
+            const { sig: _s, ...body } = envelope;
+            const valid = await verify(
+              resolved.value.pubkey,
+              hexToPubkey(sigHex),
+              body,
+            );
+            if (!valid) break;
+          }
+        }
         const key = `send:${String(envelope["from"])}:${String(envelope["to"])}`;
         const pending = this.pendingOps.get(key);
         if (pending) {
@@ -618,7 +660,29 @@ export class Conductor {
           );
           break;
         }
-        const key = `choose:${String(envelope["chooser"])}`;
+
+        const chooserRole = String(envelope["chooser"]);
+        const chooseSeq = envelope["seq"] as number | undefined;
+        if (chooseSeq !== undefined) {
+          const last = this.lastSeenSeq.get(chooserRole) ?? -1;
+          if (chooseSeq <= last) break;
+          this.lastSeenSeq.set(chooserRole, chooseSeq);
+        }
+
+        const chooseSigHex = envelope["sig"] as string | undefined;
+        if (chooseSigHex) {
+          const resolved = await this.cfg.resolver.resolve(chooserRole);
+          if (resolved.ok) {
+            const { sig: _s, ...body } = envelope;
+            const valid = await verify(
+              resolved.value.pubkey,
+              hexToPubkey(chooseSigHex),
+              body,
+            );
+            if (!valid) break;
+          }
+        }
+        const key = `choose:${chooserRole}`;
         const pending = this.pendingOps.get(key);
         if (pending) {
           this.pendingOps.delete(key);
@@ -746,7 +810,7 @@ export class Conductor {
   private async snapshotLog(force = false): Promise<void> {
     if (!force && this.actCount < LOG_SNAPSHOT_EVERY_N_ACTS) return;
     await this.cfg.storage.putLogSnapshot(
-      this.cfg.choreography.name,
+      `${this.cfg.choreography.name}-${this.runId}`,
       this.cfg.role,
       this.log.toJsonl(),
     );
