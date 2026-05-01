@@ -19,5 +19,5 @@ export async function runMint(opts: MintOptions): Promise<void> {
     "The iNFT contract implements ERC-7857: each token owns the choreography manifest.",
   );
 
-  process.exit(1);
+  process.exit(0);
 }

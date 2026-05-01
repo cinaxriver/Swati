@@ -28,10 +28,10 @@ export async function runVisualize(opts: {
 
   const rolesMatch = code.match(/roles:\s*\[([^\]]+)\]/);
   if (rolesMatch) {
-    const rolesStr = rolesMatch[1];
+    const rolesStr = rolesMatch[1]!;
     const roleMatches = rolesStr.matchAll(/"([^"]+)"/g);
     for (const match of roleMatches) {
-      nodes.add(match[1]);
+      nodes.add(match[1]!);
     }
   }
 
@@ -44,8 +44,8 @@ export async function runVisualize(opts: {
     if (sendMatch) {
       actions.push({
         type: "send",
-        from: sendMatch[1],
-        to: sendMatch[2],
+        from: sendMatch[1]!,
+        to: sendMatch[2]!,
         label: `${step}. send`,
       });
       step++;
@@ -56,7 +56,7 @@ export async function runVisualize(opts: {
     if (chooseMatch) {
       actions.push({
         type: "broadcast",
-        from: chooseMatch[1],
+        from: chooseMatch[1]!,
         label: `${step}. choose (broadcast)`,
       });
       step++;
@@ -67,7 +67,7 @@ export async function runVisualize(opts: {
     if (gateMatch) {
       actions.push({
         type: "local",
-        role: gateMatch[1],
+        role: gateMatch[1]!,
         action: "gate",
         label: `${step}. gate (execute)`,
       });
@@ -77,7 +77,7 @@ export async function runVisualize(opts: {
 
     const doMatch = line.match(/(\w+)\.do\(/);
     if (doMatch) {
-      const role = doMatch[1];
+      const role = doMatch[1]!;
       if (nodes.has(role)) {
         actions.push({
           type: "local",
@@ -94,8 +94,8 @@ export async function runVisualize(opts: {
     if (ifMatch && !line.includes("else")) {
       actions.push({
         type: "condition",
-        condition: ifMatch[1],
-        label: `${step}. if (${ifMatch[1]})`,
+        condition: ifMatch[1]!,
+        label: `${step}. if (${ifMatch[1]!})`,
       });
       step++;
       continue;
@@ -105,8 +105,8 @@ export async function runVisualize(opts: {
     if (elseIfMatch) {
       actions.push({
         type: "condition",
-        condition: elseIfMatch[1],
-        label: `${step}. else if (${elseIfMatch[1]})`,
+        condition: elseIfMatch[1]!,
+        label: `${step}. else if (${elseIfMatch[1]!})`,
       });
       step++;
       continue;

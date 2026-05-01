@@ -58,3 +58,5 @@ packages/*/dist/
 private.pem
 node-config*.json
 
+.keys
+.keys/*
