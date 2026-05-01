@@ -29,6 +29,9 @@ export interface ConductorConfig {
   gateProviders: Record<string, GateProvider>;
   llm: LLMClient;
   logPath?: string;
+  peerTimeoutMs?: number;
+  attestMaxWaitMs?: number;
+  attestRetryMs?: number;
 }
 
 interface PendingOp {
@@ -42,6 +45,8 @@ export class Conductor {
   private readonly choreoId: string;
   private readonly log: AppendLog;
   private readonly pendingOps: Map<string, PendingOp> = new Map();
+
+  private readonly earlyMessages: Map<string, unknown> = new Map();
   private readonly sharedState: Map<string, unknown> = new Map();
 
   private readonly transportIdToRole: Map<string, RoleName> = new Map();
@@ -52,10 +57,16 @@ export class Conductor {
     new Map();
   private readonly attestBuffer: Map<RoleName, string> = new Map();
   private actCount = 0;
+  private readonly peerTimeoutMs: number;
+  private readonly attestMaxWaitMs: number;
+  private readonly attestRetryMs: number;
 
   constructor(cfg: ConductorConfig) {
     this.cfg = cfg;
     this.choreoId = cfg.choreoId ?? cfg.choreography.name;
+    this.peerTimeoutMs = cfg.peerTimeoutMs ?? PEER_TIMEOUT_MS;
+    this.attestMaxWaitMs = cfg.attestMaxWaitMs ?? ATTEST_MAX_WAIT_MS;
+    this.attestRetryMs = cfg.attestRetryMs ?? ATTEST_RETRY_MS;
     const logDir =
       cfg.logPath ??
       join(process.env["SWATI_HOME"] ?? join(homedir(), ".swati"), "logs");
@@ -169,16 +180,23 @@ export class Conductor {
 
       if (role === to) {
         const key = `send:${from}:${to}`;
+
+        if (self.earlyMessages.has(key)) {
+          const buffered = self.earlyMessages.get(key) as T;
+          self.earlyMessages.delete(key);
+          return buffered;
+        }
+
         return new Promise<T>((resolve, reject) => {
           const timeoutId = setTimeout(() => {
             self.pendingOps.delete(key);
             reject(
               new Error(
                 `Peer timeout: "${from}" did not send to "${to}" within ` +
-                  `${PEER_TIMEOUT_MS / 1000}s. Did role "${from}" crash or stall?`,
+                  `${self.peerTimeoutMs / 1000}s. Did role "${from}" crash or stall?`,
               ),
             );
-          }, PEER_TIMEOUT_MS);
+          }, self.peerTimeoutMs);
 
           self.pendingOps.set(key, {
             type: "send",
@@ -293,16 +311,22 @@ export class Conductor {
       }
 
       const key = `choose:${chooserRole}`;
+
+      if (self.earlyMessages.has(key)) {
+        const buffered = self.earlyMessages.get(key) as O;
+        self.earlyMessages.delete(key);
+        return buffered;
+      }
       return new Promise<O>((resolve, reject) => {
         const timeoutId = setTimeout(() => {
           self.pendingOps.delete(key);
           reject(
             new Error(
               `Peer timeout: "${chooserRole}" did not broadcast a choice within ` +
-                `${PEER_TIMEOUT_MS / 1000}s. Did role "${chooserRole}" crash or stall?`,
+                `${self.peerTimeoutMs / 1000}s. Did role "${chooserRole}" crash or stall?`,
             ),
           );
-        }, PEER_TIMEOUT_MS);
+        }, self.peerTimeoutMs);
 
         self.pendingOps.set(key, {
           type: "choose",
@@ -358,10 +382,10 @@ export class Conductor {
           reject(
             new Error(
               `Peer timeout: "${choiceRole}" did not broadcast chooseIf within ` +
-                `${PEER_TIMEOUT_MS / 1000}s.`,
+                `${self.peerTimeoutMs / 1000}s.`,
             ),
           );
-        }, PEER_TIMEOUT_MS);
+        }, self.peerTimeoutMs);
 
         self.pendingOps.set(key, {
           type: "choose",
@@ -444,6 +468,24 @@ export class Conductor {
       throw sentinel;
     };
 
+    const invoke = async <SI, SO>(
+      subChoreo: ChoreographyDef<SI, SO>,
+      subInput: SI,
+    ): Promise<SO> => {
+      for (const r of subChoreo.roles) {
+        if (!choreography.roles.includes(r)) {
+          throw new Error(
+            `invoke(): sub-choreography "${subChoreo.name}" requires role "${r}" ` +
+              `which is not present in parent roles [${choreography.roles.join(", ")}]`,
+          );
+        }
+      }
+      const subCtx = self.makeContext(
+        subInput as unknown,
+      ) as unknown as import("./dsl.js").ChoreoContext<SI>;
+      return subChoreo.flow(subCtx);
+    };
+
     const ctx: ChoreoContext = {
       input,
       roles: roleHandles,
@@ -456,6 +498,7 @@ export class Conductor {
       persist,
       recall,
       recurse,
+      invoke,
     };
 
     return ctx;
@@ -554,6 +597,8 @@ export class Conductor {
         if (pending) {
           this.pendingOps.delete(key);
           pending.resolve(envelope["value"]);
+        } else {
+          this.earlyMessages.set(key, envelope["value"]);
         }
         break;
       }
@@ -578,6 +623,8 @@ export class Conductor {
         if (pending) {
           this.pendingOps.delete(key);
           pending.resolve(envelope["choice"]);
+        } else {
+          this.earlyMessages.set(key, envelope["choice"]);
         }
         break;
       }
@@ -627,15 +674,15 @@ export class Conductor {
     const deadlineTimer = setTimeout(() => {
       const missing = [...remaining].map((r) => `"${r}"`).join(", ");
       const msg =
-        `Attestation deadline (${ATTEST_MAX_WAIT_MS / 1000}s) exceeded. ` +
+        `Attestation deadline (${this.attestMaxWaitMs / 1000}s) exceeded. ` +
         `Roles still pending: ${missing}. ` +
         `Are they online and running the same choreography?`;
       for (const reject of rejectors.values()) reject(new Error(msg));
-    }, ATTEST_MAX_WAIT_MS);
+    }, this.attestMaxWaitMs);
 
     const retryTimer = setInterval(async () => {
       if (remaining.size > 0) await transport.broadcast(attestBytes);
-    }, ATTEST_RETRY_MS);
+    }, this.attestRetryMs);
 
     await transport.broadcast(attestBytes);
 
@@ -675,7 +722,7 @@ export class Conductor {
 
       for (const [peerRole, lastSeen] of this.lastPeerId.entries()) {
         if (
-          Date.now() - lastSeen > PEER_TIMEOUT_MS &&
+          Date.now() - lastSeen > this.peerTimeoutMs &&
           !this.peerTimedOut.has(peerRole)
         ) {
           this.peerTimedOut.add(peerRole);

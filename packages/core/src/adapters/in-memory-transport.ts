@@ -95,4 +95,8 @@ export class InMemoryTransport implements Transport {
     BUS.removeAllListeners();
     idCounter = 0;
   }
+
+  static inject(to: string, from: string, bytes: Uint8Array): void {
+    BUS.emit("swati:msg", { to, from, bytes });
+  }
 }

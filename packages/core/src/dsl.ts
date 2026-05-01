@@ -62,6 +62,8 @@ export interface ChoreoContext<I = unknown> {
   recall(key: string): Promise<unknown>;
 
   recurse(newInput: I): Promise<never>;
+
+  invoke<SI, SO>(subChoreo: ChoreographyDef<SI, SO>, input: SI): Promise<SO>;
 }
 
 export interface ChoreographyDef<I = unknown, O = unknown> {
