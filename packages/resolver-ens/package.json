@@ -1,0 +1,32 @@
+{
+  "name": "@swati/resolver-ens",
+  "version": "0.1.0",
+  "description": "swati <> ens",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./register": {
+      "import": "./dist/register.js",
+      "types": "./dist/register.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts src/register.ts --format esm --dts --out-dir dist",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@swati/core": "workspace:*",
+    "viem": "^2.18.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0"
+  }
+}
