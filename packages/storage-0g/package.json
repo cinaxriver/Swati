@@ -1,7 +1,7 @@
 {
   "name": "@swati/storage-0g",
   "version": "0.1.0",
-  "description": "zero G",
+  "description": "swati <> 0g",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
