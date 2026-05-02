@@ -4,7 +4,11 @@ import { writeFileSync, unlinkSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { generateIdentity } from "@swati/core";
+import {
+  generateIdentity,
+  loadIdentityFromFile,
+  loadIdentityFromHex,
+} from "@swati/core";
 import { Conductor } from "@swati/core";
 import { loadConfig } from "../config-loader.js";
 import { ui } from "../ui.js";
@@ -17,6 +21,7 @@ export interface RunOptions {
   config?: string;
   input?: string;
   json?: boolean;
+  identityFile?: string;
 }
 
 export async function runRun(opts: RunOptions): Promise<void> {
@@ -120,13 +125,69 @@ export async function runRun(opts: RunOptions): Promise<void> {
   }
 
   const cfg = await loadConfig(opts.config);
-  const identity = await generateIdentity(opts.role);
+
+  let identity: Awaited<ReturnType<typeof generateIdentity>>;
+  if (opts.identityFile) {
+    identity = await loadIdentityFromFile(opts.identityFile);
+  } else if (process.env["SWATI_PRIVKEY_HEX"]) {
+    identity = await loadIdentityFromHex(
+      process.env["SWATI_PRIVKEY_HEX"],
+      opts.role,
+    );
+  } else {
+    ui.warn(
+      "No --identity-file or SWATI_PRIVKEY_HEX — generating ephemeral identity (log chain will not persist across restarts)",
+    );
+    identity = await generateIdentity(opts.role);
+  }
 
   const input = opts.input ? (JSON.parse(opts.input) as unknown) : {};
+
+  spinner.text = "Pre-flight checks...";
+  for (const r of choreo.roles) {
+    const resolved = await cfg.resolver.resolve(r);
+    if (!resolved.ok) {
+      spinner.fail(
+        `Role "${r}" not found in resolver — add it to identities.json`,
+      );
+      if (tmpScorePath) {
+        try {
+          unlinkSync(tmpScorePath);
+        } catch {}
+      }
+      process.exit(1);
+    }
+  }
+  if (
+    typeof (cfg.transport as Record<string, unknown>)["awaitReady"] ===
+    "function"
+  ) {
+    const ready = await Promise.race([
+      (cfg.transport as unknown as { awaitReady(): Promise<void> })
+        .awaitReady()
+        .then(() => true),
+      new Promise<boolean>((r) => setTimeout(() => r(false), 5000)),
+    ]);
+    if (!ready) {
+      spinner.fail(
+        "Transport endpoint unreachable within 5s — is AXL running?",
+      );
+      if (tmpScorePath) {
+        try {
+          unlinkSync(tmpScorePath);
+        } catch {}
+      }
+      process.exit(1);
+    }
+  }
+  spinner.succeed("Pre-flight OK");
+
+  const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
   const conductor = new Conductor({
     choreography: choreo,
     ...(resolvedChoreoId !== undefined ? { choreoId: resolvedChoreoId } : {}),
+    runId,
     role: opts.role,
     identity,
     transport: cfg.transport,
@@ -136,16 +197,37 @@ export async function runRun(opts: RunOptions): Promise<void> {
     llm: cfg.llm,
   });
 
+  const shutdown = async (code = 1) => {
+    await cfg.transport.close().catch(() => {});
+    process.exit(code);
+  };
+  process.once("SIGINT", () => {
+    void shutdown(130);
+  });
+  process.once("SIGTERM", () => {
+    void shutdown(143);
+  });
+
   const choreoIdDisplay = resolvedChoreoId
     ? `${choreo.name} (${resolvedChoreoId.split("@")[1]?.slice(0, 20)}…)`
     : choreo.name;
-  spinner.succeed(
-    `Conductor ready — role: ${opts.role}, choreo: ${choreoIdDisplay}`,
+  ui.info(
+    `Conductor ready — role: ${opts.role}, choreo: ${choreoIdDisplay}, runId: ${runId}`,
   );
   ui.info(`Waiting for peers and executing steps...`);
 
   const start = Date.now();
-  const result = await conductor.run(input);
+  let result: Awaited<ReturnType<typeof conductor.run>>;
+  try {
+    result = await conductor.run(input);
+  } finally {
+    await cfg.transport.close().catch(() => {});
+    if (tmpScorePath) {
+      try {
+        unlinkSync(tmpScorePath);
+      } catch {}
+    }
+  }
   const elapsed = ((Date.now() - start) / 1000).toFixed(2);
 
   if (result.ok) {

@@ -10,6 +10,7 @@ import { runJoin } from "./commands/join.js";
 import { runWatch } from "./commands/watch.js";
 import { runMint } from "./commands/mint.js";
 import { runVisualize } from "./commands/visualize.js";
+import { runDaemon } from "./commands/daemon.js";
 import { runEnsLookup, runEnsRegister, runEnsCheck } from "./commands/ens.js";
 import {
   runRegistryRegister,
@@ -70,6 +71,10 @@ program
   )
   .option("--config <file>", "path to swati.config.ts (default: auto-detect)")
   .option("--input <json>", "JSON-encoded input for the choreography")
+  .option(
+    "--identity-file <path>",
+    "path to identity JSON from `swati keygen --out` (overrides SWATI_PRIVKEY_HEX)",
+  )
   .option("--json", "output result as JSON")
   .action(
     async (opts: {
@@ -78,6 +83,7 @@ program
       id?: string;
       config?: string;
       input?: string;
+      identityFile?: string;
       json?: boolean;
     }) => {
       await runRun(opts);
@@ -413,5 +419,19 @@ REG_OPTS(reg.command("verify-role"))
       await runRegistryVerifyRole(opts);
     },
   );
+
+program
+  .command("daemon")
+  .description(
+    "Start Swati as a long-running daemon with HTTP API (port 7420 by default)",
+  )
+  .option("--port <n>", "HTTP API port", "7420")
+  .option("--config <file>", "path to swati.config.ts")
+  .action(async (opts: { port?: string; config?: string }) => {
+    const daemonOpts: import("./commands/daemon.js").DaemonOptions = {};
+    if (opts.port) daemonOpts.port = parseInt(opts.port, 10);
+    if (opts.config) daemonOpts.config = opts.config;
+    await runDaemon(daemonOpts);
+  });
 
 program.parse(process.argv);
