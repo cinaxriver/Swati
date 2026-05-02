@@ -1,0 +1,194 @@
+export const SWATI_REGISTRY_ABI = [
+  {
+    type: "event",
+    name: "ChoreographyRegistered",
+    inputs: [
+      { name: "choreoId", type: "bytes32", indexed: true },
+      { name: "name", type: "string", indexed: false },
+      { name: "manifestHash", type: "bytes32", indexed: false },
+      { name: "publisher", type: "address", indexed: true },
+    ],
+  },
+  {
+    type: "event",
+    name: "RoleRegistered",
+    inputs: [
+      { name: "choreoId", type: "bytes32", indexed: true },
+      { name: "role", type: "string", indexed: false },
+      { name: "pubkeyHash", type: "bytes32", indexed: false },
+      { name: "ensName", type: "string", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "InvokeLinked",
+    inputs: [
+      { name: "parentId", type: "bytes32", indexed: true },
+      { name: "childId", type: "bytes32", indexed: true },
+      { name: "linkedBy", type: "address", indexed: true },
+    ],
+  },
+  {
+    type: "event",
+    name: "LogAnchored",
+    inputs: [
+      { name: "choreoId", type: "bytes32", indexed: true },
+      { name: "logRootHash", type: "bytes32", indexed: false },
+      { name: "logUri", type: "string", indexed: false },
+      { name: "anchoredBy", type: "address", indexed: true },
+    ],
+  },
+
+  {
+    type: "function",
+    name: "registerChoreography",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "manifestHash", type: "bytes32" },
+      { name: "name", type: "string" },
+      { name: "roles", type: "string[]" },
+      { name: "sourceUri", type: "string" },
+      { name: "manifestUri", type: "string" },
+    ],
+    outputs: [{ name: "choreoId", type: "bytes32" }],
+  },
+  {
+    type: "function",
+    name: "registerRole",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "role", type: "string" },
+      { name: "pubkeyHash", type: "bytes32" },
+      { name: "ensName", type: "string" },
+      { name: "axlPeerId", type: "string" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "linkInvoke",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "parentId", type: "bytes32" },
+      { name: "childId", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "anchorLog",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "logRootHash", type: "bytes32" },
+      { name: "logUri", type: "string" },
+    ],
+    outputs: [],
+  },
+
+  {
+    type: "function",
+    name: "verifyRole",
+    stateMutability: "view",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "role", type: "string" },
+      { name: "pubkeyHash", type: "bytes32" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "canInvoke",
+    stateMutability: "view",
+    inputs: [
+      { name: "parentId", type: "bytes32" },
+      { name: "childId", type: "bytes32" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "getPublisherChoreos",
+    stateMutability: "view",
+    inputs: [{ name: "publisher", type: "address" }],
+    outputs: [{ name: "", type: "bytes32[]" }],
+  },
+  {
+    type: "function",
+    name: "getChoreoRoles",
+    stateMutability: "view",
+    inputs: [{ name: "choreoId", type: "bytes32" }],
+    outputs: [{ name: "", type: "string[]" }],
+  },
+  {
+    type: "function",
+    name: "getInvokeList",
+    stateMutability: "view",
+    inputs: [{ name: "choreoId", type: "bytes32" }],
+    outputs: [{ name: "", type: "bytes32[]" }],
+  },
+  {
+    type: "function",
+    name: "getInvokedByList",
+    stateMutability: "view",
+    inputs: [{ name: "choreoId", type: "bytes32" }],
+    outputs: [{ name: "", type: "bytes32[]" }],
+  },
+  {
+    type: "function",
+    name: "getLogAnchors",
+    stateMutability: "view",
+    inputs: [{ name: "choreoId", type: "bytes32" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple[]",
+        components: [
+          { name: "logRootHash", type: "bytes32" },
+          { name: "logUri", type: "string" },
+          { name: "anchoredBy", type: "address" },
+          { name: "anchoredAt", type: "uint64" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "choreographies",
+    stateMutability: "view",
+    inputs: [{ name: "choreoId", type: "bytes32" }],
+    outputs: [
+      { name: "name", type: "string" },
+      { name: "manifestHash", type: "bytes32" },
+      { name: "sourceUri", type: "string" },
+      { name: "manifestUri", type: "string" },
+      { name: "publisher", type: "address" },
+      { name: "registeredAt", type: "uint64" },
+      { name: "roleCount", type: "uint8" },
+      { name: "exists", type: "bool" },
+    ],
+  },
+  {
+    type: "function",
+    name: "roleIdentities",
+    stateMutability: "view",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "role", type: "string" },
+    ],
+    outputs: [
+      { name: "pubkeyHash", type: "bytes32" },
+      { name: "ensName", type: "string" },
+      { name: "axlPeerId", type: "string" },
+      { name: "registeredAt", type: "uint64" },
+      { name: "exists", type: "bool" },
+    ],
+  },
+] as const;
+
+export const REGISTRY_ADDRESSES: Record<string, `0x${string}`> = {
+  sepolia: "0x0000000000000000000000000000000000000000",
+  mainnet: "0x0000000000000000000000000000000000000000",
+};
