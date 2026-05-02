@@ -61,3 +61,5 @@ node-config*.json
 .keys
 .keys/*
 keys.js
+
+yarn.lock

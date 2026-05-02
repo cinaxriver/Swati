@@ -1,0 +1,64 @@
+version: '3.8'
+
+# AXL 3-node mesh — requires: ./axl.sh setup (clones axl-source/)
+# Usage: ./axl.sh start --docker  OR  docker compose up -d
+
+services:
+  node1:
+    image: golang:1.25.5-bullseye
+    working_dir: /app
+    volumes:
+      - ./axl-source:/app
+      - ./keys:/keys:ro
+      - ./docker-configs/node-1.json:/node-config.json:ro
+      - go-mod-cache:/go/pkg/mod
+    command: ["go", "run", "./cmd/node/", "-config", "/node-config.json"]
+    ports:
+      - "9002:9002"
+    networks:
+      - axl-net
+    environment:
+      - GOTOOLCHAIN=go1.25.5
+
+  node2:
+    image: golang:1.25.5-bullseye
+    working_dir: /app
+    volumes:
+      - ./axl-source:/app
+      - ./keys:/keys:ro
+      - ./docker-configs/node-2.json:/node-config.json:ro
+      - go-mod-cache:/go/pkg/mod
+    command: ["go", "run", "./cmd/node/", "-config", "/node-config.json"]
+    ports:
+      - "9012:9012"
+    depends_on:
+      - node1
+    networks:
+      - axl-net
+    environment:
+      - GOTOOLCHAIN=go1.25.5
+
+  node3:
+    image: golang:1.25.5-bullseye
+    working_dir: /app
+    volumes:
+      - ./axl-source:/app
+      - ./keys:/keys:ro
+      - ./docker-configs/node-3.json:/node-config.json:ro
+      - go-mod-cache:/go/pkg/mod
+    command: ["go", "run", "./cmd/node/", "-config", "/node-config.json"]
+    ports:
+      - "9022:9022"
+    depends_on:
+      - node1
+    networks:
+      - axl-net
+    environment:
+      - GOTOOLCHAIN=go1.25.5
+
+networks:
+  axl-net:
+    driver: bridge
+
+volumes:
+  go-mod-cache:

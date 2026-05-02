@@ -1,0 +1,7 @@
+{
+  "PrivateKeyPath": "keys/private-5.pem",
+  "Listen": [],
+  "Peers": ["tcp://127.0.0.1:9001"],
+  "api_port": 9042,
+  "tcp_port": 7000
+}

@@ -1,0 +1,8 @@
+{
+  "PrivateKeyPath": "/keys/private-1.pem",
+  "Listen": ["tcp://0.0.0.0:9001"],
+  "Peers": [],
+  "api_port": 9002,
+  "bridge_addr": "0.0.0.0",
+  "tcp_port": 7000
+}
