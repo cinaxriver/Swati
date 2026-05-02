@@ -10,6 +10,15 @@ import { runJoin } from "./commands/join.js";
 import { runWatch } from "./commands/watch.js";
 import { runMint } from "./commands/mint.js";
 import { runVisualize } from "./commands/visualize.js";
+import { runEnsLookup, runEnsRegister, runEnsCheck } from "./commands/ens.js";
+import {
+  runRegistryRegister,
+  runRegistryRegisterRole,
+  runRegistryLinkInvoke,
+  runRegistryAnchorLog,
+  runRegistryLookup,
+  runRegistryVerifyRole,
+} from "./commands/registry.js";
 
 const program = new Command();
 
@@ -149,5 +158,260 @@ program
   .action(async (uri: string, opts: { config?: string; json?: boolean }) => {
     await runMint({ uri, ...opts });
   });
+
+const ens = program
+  .command("ens")
+  .description("Manage ENS text records for swati agent identities");
+
+ens
+  .command("lookup <name>")
+  .description("Display swati text records registered under an ENS name")
+  .option("--network <net>", "mainnet or sepolia", "mainnet")
+  .option("--rpc-url <url>", "custom RPC endpoint")
+  .option("--json", "output as JSON")
+  .action(
+    async (
+      name: string,
+      opts: { network?: string; rpcUrl?: string; json?: boolean },
+    ) => {
+      await runEnsLookup({ name, ...opts });
+    },
+  );
+
+ens
+  .command("register <name>")
+  .description(
+    "Write swati identity records to an ENS name (requires wallet key)",
+  )
+  .requiredOption("--pubkey <hex>", "ed25519 pubkey hex from `swati keygen`")
+  .requiredOption("--axl-pubkey <base64>", "AXL peer ID from AXL node config")
+  .requiredOption(
+    "--wallet-key <hex>",
+    "private key of the wallet that owns the ENS name",
+  )
+  .option("--caps-url <url>", "URL to capability manifest JSON")
+  .option(
+    "--choreographies <ids>",
+    "comma-separated choreography IDs this name may join",
+  )
+  .option("--rep-url <url>", "URL to reputation oracle")
+  .option("--network <net>", "mainnet or sepolia", "mainnet")
+  .option("--rpc-url <url>", "custom RPC endpoint")
+  .option("--json", "output as JSON")
+  .action(
+    async (
+      name: string,
+      opts: {
+        pubkey: string;
+        axlPubkey: string;
+        walletKey: string;
+        capsUrl?: string;
+        choreographies?: string;
+        repUrl?: string;
+        network?: string;
+        rpcUrl?: string;
+        json?: boolean;
+      },
+    ) => {
+      await runEnsRegister({ name, ...opts });
+    },
+  );
+
+ens
+  .command("check <name>")
+  .description(
+    "Verify that an ENS name is authorized to join a specific choreography",
+  )
+  .requiredOption(
+    "--choreo-id <id>",
+    "choreography manifest ID to check against",
+  )
+  .option("--network <net>", "mainnet or sepolia", "mainnet")
+  .option("--rpc-url <url>", "custom RPC endpoint")
+  .option("--json", "output as JSON")
+  .action(
+    async (
+      name: string,
+      opts: {
+        choreoId: string;
+        network?: string;
+        rpcUrl?: string;
+        json?: boolean;
+      },
+    ) => {
+      await runEnsCheck({ name, ...opts });
+    },
+  );
+
+const reg = program
+  .command("registry")
+  .description(
+    "Manage choreographies, role identities, and invoke links in the on-chain SwatiRegistry",
+  );
+
+const REG_OPTS = (cmd: ReturnType<typeof reg.command>) =>
+  cmd
+    .option("--network <net>", "mainnet or sepolia", "mainnet")
+    .option("--rpc-url <url>", "custom RPC endpoint")
+    .option("--contract-address <addr>", "override registry contract address")
+    .option("--json", "output as JSON");
+
+REG_OPTS(reg.command("register"))
+  .description("Register a published choreography manifest on-chain")
+  .requiredOption(
+    "--manifest-id <id>",
+    "swati manifest ID (from `swati publish`)",
+  )
+  .requiredOption(
+    "--wallet-key <hex>",
+    "private key of the wallet that owns the registration",
+  )
+  .option("--source-uri <uri>", "override source URI stored in the manifest")
+  .option(
+    "--manifest-uri <uri>",
+    "override manifest URI stored in the manifest",
+  )
+  .action(
+    async (opts: {
+      manifestId: string;
+      walletKey: string;
+      sourceUri?: string;
+      manifestUri?: string;
+      network?: string;
+      rpcUrl?: string;
+      contractAddress?: string;
+      json?: boolean;
+    }) => {
+      await runRegistryRegister(opts);
+    },
+  );
+
+REG_OPTS(reg.command("register-role"))
+  .description("Register an ed25519 role identity for a choreography")
+  .requiredOption(
+    "--choreo-id <bytes32>",
+    "on-chain choreoId from `registry register`",
+  )
+  .requiredOption("--role <name>", "role name (e.g. analyst)")
+  .requiredOption("--pubkey <hex>", "ed25519 pubkey hex from `swati keygen`")
+  .requiredOption(
+    "--wallet-key <hex>",
+    "private key of the choreography publisher",
+  )
+  .option("--ens-name <name>", "optional ENS subname (e.g. analyst.alice.eth)")
+  .option("--axl-peer-id <id>", "optional AXL peer ID")
+  .action(
+    async (opts: {
+      choreoId: string;
+      role: string;
+      pubkey: string;
+      walletKey: string;
+      ensName?: string;
+      axlPeerId?: string;
+      network?: string;
+      rpcUrl?: string;
+      contractAddress?: string;
+      json?: boolean;
+    }) => {
+      await runRegistryRegisterRole(opts);
+    },
+  );
+
+REG_OPTS(reg.command("link-invoke"))
+  .description(
+    "Declare on-chain that a parent choreography may invoke a child (mirrors c.invoke())",
+  )
+  .requiredOption(
+    "--parent-id <id>",
+    "parent choreography manifest ID or bytes32",
+  )
+  .requiredOption(
+    "--child-id <id>",
+    "child choreography manifest ID or bytes32",
+  )
+  .requiredOption(
+    "--wallet-key <hex>",
+    "private key of the parent choreography publisher",
+  )
+  .action(
+    async (opts: {
+      parentId: string;
+      childId: string;
+      walletKey: string;
+      network?: string;
+      rpcUrl?: string;
+      contractAddress?: string;
+      json?: boolean;
+    }) => {
+      await runRegistryLinkInvoke(opts);
+    },
+  );
+
+REG_OPTS(reg.command("anchor-log"))
+  .description(
+    "Anchor an execution log hash on-chain for verifiable audit trail",
+  )
+  .requiredOption("--manifest-id <id>", "swati manifest ID of the choreography")
+  .requiredOption(
+    "--log-uri <uri>",
+    "storage URI where the full JSONL log is stored",
+  )
+  .requiredOption(
+    "--wallet-key <hex>",
+    "private key to sign the anchor transaction",
+  )
+  .option(
+    "--log-file <path>",
+    "path to JSONL log file (used to compute log root hash)",
+  )
+  .action(
+    async (opts: {
+      manifestId: string;
+      logUri: string;
+      logFile?: string;
+      walletKey: string;
+      network?: string;
+      rpcUrl?: string;
+      contractAddress?: string;
+      json?: boolean;
+    }) => {
+      await runRegistryAnchorLog(opts);
+    },
+  );
+
+REG_OPTS(reg.command("lookup <id>"))
+  .description("Look up a choreography by manifest ID or bytes32 choreoId")
+  .action(
+    async (
+      id: string,
+      opts: {
+        network?: string;
+        rpcUrl?: string;
+        contractAddress?: string;
+        json?: boolean;
+      },
+    ) => {
+      await runRegistryLookup({ id, ...opts });
+    },
+  );
+
+REG_OPTS(reg.command("verify-role"))
+  .description("Verify that a role pubkey matches what is registered on-chain")
+  .requiredOption("--id <id>", "choreography manifest ID or bytes32")
+  .requiredOption("--role <name>", "role name")
+  .requiredOption("--pubkey <hex>", "ed25519 pubkey hex to verify")
+  .action(
+    async (opts: {
+      id: string;
+      role: string;
+      pubkey: string;
+      network?: string;
+      rpcUrl?: string;
+      contractAddress?: string;
+      json?: boolean;
+    }) => {
+      await runRegistryVerifyRole(opts);
+    },
+  );
 
 program.parse(process.argv);
