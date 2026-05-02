@@ -1,20 +1,20 @@
 {
   "name": "@swati/core",
   "version": "0.1.0",
-  "description": "vanilla",
+  "description": "swati <> core",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./adapters": "./dist/adapters/index.js",
-    "./interfaces": "./dist/interfaces/index.js",
-    "./interfaces/transport": "./dist/interfaces/transport.js",
-    "./interfaces/resolver": "./dist/interfaces/resolver.js",
-    "./interfaces/storage": "./dist/interfaces/storage.js",
-    "./interfaces/gate": "./dist/interfaces/gate.js",
-    "./interfaces/llm": "./dist/interfaces/llm.js",
-    "./config": "./dist/config.js"
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./adapters": { "types": "./dist/adapters/index.d.ts", "default": "./dist/adapters/index.js" },
+    "./interfaces": { "types": "./dist/interfaces/index.d.ts", "default": "./dist/interfaces/index.js" },
+    "./interfaces/transport": { "types": "./dist/interfaces/transport.d.ts", "default": "./dist/interfaces/transport.js" },
+    "./interfaces/resolver": { "types": "./dist/interfaces/resolver.d.ts", "default": "./dist/interfaces/resolver.js" },
+    "./interfaces/storage": { "types": "./dist/interfaces/storage.d.ts", "default": "./dist/interfaces/storage.js" },
+    "./interfaces/gate": { "types": "./dist/interfaces/gate.d.ts", "default": "./dist/interfaces/gate.js" },
+    "./interfaces/llm": { "types": "./dist/interfaces/llm.d.ts", "default": "./dist/interfaces/llm.js" },
+    "./config": { "types": "./dist/config.d.ts", "default": "./dist/config.js" }
   },
   "scripts": {
     "build": "tsup src/index.ts src/adapters/index.ts src/interfaces/index.ts src/config.ts --format esm --dts --out-dir dist",
@@ -22,12 +22,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@noble/curves": "^2.2.0",
     "@noble/ed25519": "^2.1.0",
     "@noble/hashes": "^1.4.0"
   },
   "devDependencies": {
-    "vitest": "^2.0.0",
+    "@types/node": "^22.0.0",
     "typescript": "^5.5.0",
-    "@types/node": "^22.0.0"
+    "vitest": "^2.0.0"
   }
 }

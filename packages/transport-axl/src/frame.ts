@@ -37,9 +37,7 @@ export function encodeFrame(frame: WireFrame): Uint8Array {
   view.setUint32(37, frame.sequence, false);
   writeField(view, 41, frame.senderRole);
 
-  const sigBytes = frame.sig
-    ? hexToBytes(frame.sig.slice(0, 64))
-    : new Uint8Array(32);
+  const sigBytes = frame.sig ? hexToBytes(frame.sig.slice(0, 64)) : new Uint8Array(32);
   out.set(sigBytes.slice(0, 32), 73);
   out.set(frame.payload, HEADER_SIZE);
   return out;

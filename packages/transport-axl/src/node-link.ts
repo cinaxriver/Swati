@@ -48,9 +48,7 @@ export class NodeLink {
     return res.json() as Promise<MeshSnapshot>;
   }
 
-  async awaitReady(
-    opts: { attempts?: number; delayMs?: number } = {},
-  ): Promise<void> {
+  async awaitReady(opts: { attempts?: number; delayMs?: number } = {}): Promise<void> {
     const { attempts = 60, delayMs = 500 } = opts;
     for (let i = 0; i < attempts; i++) {
       try {
@@ -78,14 +76,10 @@ export class NodeLink {
         const snap = await this.snapshot();
         const connected = (snap.peers ?? []).filter((p) => p.up).length;
         if (connected >= minCount) return;
-      } catch {
-        /* node not ready yet */
-      }
+      } catch {}
       await pause(delayMs);
     }
-    console.warn(
-      `[node-link] awaitPeers: wanted ${minCount} — mesh may be partial, proceeding`,
-    );
+    console.warn(`[node-link] awaitPeers: wanted ${minCount} — mesh may be partial, proceeding`);
   }
 
   async emit(destPeer: string, data: Uint8Array): Promise<void> {
@@ -97,7 +91,7 @@ export class NodeLink {
           "Content-Type": "application/octet-stream",
           "X-Destination-Peer-Id": destPeer,
         },
-        body: data,
+        body: data as unknown as BodyInit,
       });
     } catch (cause) {
       throw new Error(`AXL node unreachable at ${this.base}`, { cause });

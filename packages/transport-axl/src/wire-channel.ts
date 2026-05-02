@@ -10,6 +10,7 @@ const pause = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export interface WireChannelOptions {
   endpoint?: string;
+
   targetNodes?: string[];
 }
 
@@ -21,13 +22,11 @@ export class WireChannel implements Transport {
   private halted = false;
   private activeEmissions = 0;
 
-  private readonly inboundBuffer: Array<{ from: string; bytes: Uint8Array }> =
-    [];
+  private readonly inboundBuffer: Array<{ from: string; bytes: Uint8Array }> = [];
   private drainTrigger: (() => void) | null = null;
 
   constructor(opts: WireChannelOptions = {}) {
-    const endpoint =
-      opts.endpoint ?? process.env["AXL_ENDPOINT"] ?? "http://localhost:9002";
+    const endpoint = opts.endpoint ?? process.env["AXL_ENDPOINT"] ?? "http://localhost:9002";
     this.link = new NodeLink(endpoint);
     this.targetNodes = opts.targetNodes ?? [];
     this.launchEventLoop();
@@ -64,23 +63,15 @@ export class WireChannel implements Transport {
     try {
       snap = await this.link.snapshot();
     } catch (cause) {
-      return err(
-        "CHANNEL_BROADCAST_FAILED",
-        "WireChannel: broadcast snapshot failed",
-        cause,
-      );
+      return err("CHANNEL_BROADCAST_FAILED", "WireChannel: broadcast snapshot failed", cause);
     }
 
-    const activePeers = (snap.peers ?? [])
-      .filter((p) => p.up)
-      .map((p) => p.public_key);
-    const targets = Array.from(
-      new Set([...activePeers, ...this.targetNodes]),
-    ).filter((p) => p !== snap.our_public_key);
-
-    await Promise.all(
-      targets.map((p) => this.link.emit(p, bytes).catch(() => {})),
+    const activePeers = (snap.peers ?? []).filter((p) => p.up).map((p) => p.public_key);
+    const targets = Array.from(new Set([...activePeers, ...this.targetNodes])).filter(
+      (p) => p !== snap.our_public_key,
     );
+
+    await Promise.all(targets.map((p) => this.link.emit(p, bytes).catch(() => {})));
     return ok(undefined);
   }
 
@@ -130,10 +121,7 @@ export class WireChannel implements Transport {
         try {
           const packet = await this.link.poll();
           if (packet?.sourcePeer) {
-            this.inboundBuffer.push({
-              from: packet.sourcePeer,
-              bytes: packet.data,
-            });
+            this.inboundBuffer.push({ from: packet.sourcePeer, bytes: packet.data });
             this.drainTrigger?.();
             this.drainTrigger = null;
           }

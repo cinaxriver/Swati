@@ -1,7 +1,7 @@
 {
   "name": "@swati/transport-axl",
   "version": "0.1.0",
-  "description": "swati <> gensyn-axl",
+  "description": "swati <> axl",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
