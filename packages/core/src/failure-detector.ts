@@ -22,9 +22,7 @@ export function makeFailureDetector(timeoutMs: number): FailureDetector {
 
     suspected(): string[] {
       const now = Date.now();
-      return [...lastSeen.entries()]
-        .filter(([, ts]) => now - ts > timeoutMs)
-        .map(([peer]) => peer);
+      return [...lastSeen.entries()].filter(([, ts]) => now - ts > timeoutMs).map(([peer]) => peer);
     },
   };
 }

@@ -102,39 +102,26 @@ export class SwatiRuntime extends EventEmitter {
   override on(event: "act:before", listener: (e: ActBeforeEvent) => void): this;
   override on(event: "act:after", listener: (e: ActAfterEvent) => void): this;
 
-  override on(
-    event: string | symbol,
-    listener: (...args: any[]) => void,
-  ): this {
+  override on(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.on(event, listener);
   }
 
   override once(event: "run:start", listener: (e: RunStartEvent) => void): this;
   override once(event: "run:end", listener: (e: RunEndEvent) => void): this;
   override once(event: "run:error", listener: (e: RunErrorEvent) => void): this;
-  override once(
-    event: "act:before",
-    listener: (e: ActBeforeEvent) => void,
-  ): this;
+  override once(event: "act:before", listener: (e: ActBeforeEvent) => void): this;
   override once(event: "act:after", listener: (e: ActAfterEvent) => void): this;
 
-  override once(
-    event: string | symbol,
-    listener: (...args: any[]) => void,
-  ): this {
+  override once(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.once(event, listener);
   }
 
   async start(): Promise<void> {
     this.started = true;
     if (
-      typeof (this.cfg.transport as unknown as Record<string, unknown>)[
-        "awaitReady"
-      ] === "function"
+      typeof (this.cfg.transport as unknown as Record<string, unknown>)["awaitReady"] === "function"
     ) {
-      await (
-        this.cfg.transport as unknown as { awaitReady(): Promise<void> }
-      ).awaitReady();
+      await (this.cfg.transport as unknown as { awaitReady(): Promise<void> }).awaitReady();
     }
   }
 
@@ -179,13 +166,7 @@ export class SwatiRuntime extends EventEmitter {
     };
     this.runs.set(runId, record);
 
-    this._spawnRun(
-      choreo as ChoreographyDef,
-      role,
-      input as unknown,
-      identityFile,
-      runId,
-    )
+    this._spawnRun(choreo as ChoreographyDef, role, input as unknown, identityFile, runId)
       .then((result) => {
         record.status = result.ok ? "done" : "failed";
         record.result = result;
@@ -217,8 +198,7 @@ export class SwatiRuntime extends EventEmitter {
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
-        () =>
-          reject(new Error(`waitFor(${runId}) timed out after ${timeoutMs}ms`)),
+        () => reject(new Error(`waitFor(${runId}) timed out after ${timeoutMs}ms`)),
         timeoutMs,
       );
       const orig = record.resolve;
@@ -252,9 +232,7 @@ export class SwatiRuntime extends EventEmitter {
     );
     if (active.length > 0) {
       await Promise.race([
-        Promise.all(
-          active.map((r) => this.waitFor(r.runId, 60_000).catch(() => {})),
-        ),
+        Promise.all(active.map((r) => this.waitFor(r.runId, 60_000).catch(() => {}))),
         new Promise((r) => setTimeout(r, 60_000)),
       ]);
     }
@@ -269,9 +247,7 @@ export class SwatiRuntime extends EventEmitter {
     identityFile?: string,
     runId?: string,
   ): Promise<Result<unknown>> {
-    const rid =
-      runId ??
-      `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const rid = runId ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const record = this.runs.get(rid);
     if (record) record.status = "running";
 
@@ -305,24 +281,10 @@ export class SwatiRuntime extends EventEmitter {
     const durationMs = Date.now() - t0;
 
     if (result.ok) {
-      this.emit("run:end", {
-        runId: rid,
-        role,
-        result,
-        durationMs,
-      } satisfies RunEndEvent);
+      this.emit("run:end", { runId: rid, role, result, durationMs } satisfies RunEndEvent);
     } else {
-      this.emit("run:error", {
-        runId: rid,
-        role,
-        error: result.error,
-      } satisfies RunErrorEvent);
-      this.emit("run:end", {
-        runId: rid,
-        role,
-        result,
-        durationMs,
-      } satisfies RunEndEvent);
+      this.emit("run:error", { runId: rid, role, error: result.error } satisfies RunErrorEvent);
+      this.emit("run:end", { runId: rid, role, result, durationMs } satisfies RunEndEvent);
     }
 
     return result;

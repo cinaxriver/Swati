@@ -11,6 +11,7 @@ export interface SwatiConfig {
   storage: Storage;
   gates: Record<string, GateProvider>;
   llm: LLMClient;
+
   choreographies?: Record<string, ChoreographyDef>;
 }
 

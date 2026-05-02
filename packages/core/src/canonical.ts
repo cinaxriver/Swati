@@ -8,8 +8,7 @@ export function canonicalJson(value: unknown): string {
   if (value === null || value === undefined) return "null";
   if (typeof value === "boolean") return value ? "true" : "false";
   if (typeof value === "number") {
-    if (!isFinite(value))
-      throw new Error("Non-finite numbers are not canonical");
+    if (!isFinite(value)) throw new Error("Non-finite numbers are not canonical");
     return String(value);
   }
   if (typeof value === "string") return JSON.stringify(value);

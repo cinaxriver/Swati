@@ -3,11 +3,7 @@ import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import type { SwatiConfig } from "@swati/core";
 
-const CONFIG_DEFAULTS = [
-  "swati.config.ts",
-  "swati.config.js",
-  "swati.config.vanilla.ts",
-];
+const CONFIG_DEFAULTS = ["swati.config.ts", "swati.config.js", "swati.config.vanilla.ts"];
 
 export async function loadConfig(configPath?: string): Promise<SwatiConfig> {
   const path = configPath ? resolve(configPath) : findDefaultConfig();
@@ -34,13 +30,8 @@ function findDefaultConfig(): string | null {
 }
 
 async function makeVanillaConfig(): Promise<SwatiConfig> {
-  const {
-    InMemoryTransport,
-    StaticResolver,
-    LocalFileStorage,
-    LocalGate,
-    MockLLM,
-  } = await import("@swati/core/adapters");
+  const { InMemoryTransport, StaticResolver, LocalFileStorage, LocalGate, MockLLM } =
+    await import("@swati/core/adapters");
   const { defineConfig } = await import("@swati/core");
   const { join } = await import("node:path");
   const { homedir } = await import("node:os");

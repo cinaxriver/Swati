@@ -16,18 +16,14 @@ export interface RegistryRegisterOptions {
   json?: boolean;
 }
 
-export async function runRegistryRegister(
-  opts: RegistryRegisterOptions,
-): Promise<void> {
+export async function runRegistryRegister(opts: RegistryRegisterOptions): Promise<void> {
   const { OnchainRegistry } = await import("@swati/registry-onchain");
 
   const registry = new OnchainRegistry({
     network: parseNetwork(opts.network),
     walletPrivateKey: opts.walletKey,
     ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
-    ...(opts.contractAddress
-      ? { contractAddress: opts.contractAddress as `0x${string}` }
-      : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
   });
 
   const { loadConfig } = await import("../config-loader.js");
@@ -86,18 +82,14 @@ export interface RegistryRegisterRoleOptions {
   json?: boolean;
 }
 
-export async function runRegistryRegisterRole(
-  opts: RegistryRegisterRoleOptions,
-): Promise<void> {
+export async function runRegistryRegisterRole(opts: RegistryRegisterRoleOptions): Promise<void> {
   const { OnchainRegistry } = await import("@swati/registry-onchain");
 
   const registry = new OnchainRegistry({
     network: parseNetwork(opts.network),
     walletPrivateKey: opts.walletKey,
     ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
-    ...(opts.contractAddress
-      ? { contractAddress: opts.contractAddress as `0x${string}` }
-      : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
   });
 
   const spinner = ui.spinner(`Registering role "${opts.role}" on-chain…`);
@@ -134,18 +126,14 @@ export interface RegistryLinkInvokeOptions {
   json?: boolean;
 }
 
-export async function runRegistryLinkInvoke(
-  opts: RegistryLinkInvokeOptions,
-): Promise<void> {
+export async function runRegistryLinkInvoke(opts: RegistryLinkInvokeOptions): Promise<void> {
   const { OnchainRegistry } = await import("@swati/registry-onchain");
 
   const registry = new OnchainRegistry({
     network: parseNetwork(opts.network),
     walletPrivateKey: opts.walletKey,
     ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
-    ...(opts.contractAddress
-      ? { contractAddress: opts.contractAddress as `0x${string}` }
-      : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
   });
 
   const spinner = ui.spinner("Linking invoke relationship on-chain…");
@@ -182,9 +170,7 @@ export interface RegistryAnchorLogOptions {
   json?: boolean;
 }
 
-export async function runRegistryAnchorLog(
-  opts: RegistryAnchorLogOptions,
-): Promise<void> {
+export async function runRegistryAnchorLog(opts: RegistryAnchorLogOptions): Promise<void> {
   const { OnchainRegistry } = await import("@swati/registry-onchain");
   const { readFileSync } = await import("node:fs");
 
@@ -194,9 +180,7 @@ export async function runRegistryAnchorLog(
     network: parseNetwork(opts.network),
     walletPrivateKey: opts.walletKey,
     ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
-    ...(opts.contractAddress
-      ? { contractAddress: opts.contractAddress as `0x${string}` }
-      : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
   });
 
   const spinner = ui.spinner("Anchoring execution log on-chain…");
@@ -223,17 +207,13 @@ export interface RegistryLookupOptions {
   json?: boolean;
 }
 
-export async function runRegistryLookup(
-  opts: RegistryLookupOptions,
-): Promise<void> {
+export async function runRegistryLookup(opts: RegistryLookupOptions): Promise<void> {
   const { OnchainRegistry } = await import("@swati/registry-onchain");
 
   const registry = new OnchainRegistry({
     network: parseNetwork(opts.network),
     ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
-    ...(opts.contractAddress
-      ? { contractAddress: opts.contractAddress as `0x${string}` }
-      : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
   });
 
   const spinner = ui.spinner(`Looking up ${opts.id}…`);
@@ -298,17 +278,13 @@ export interface RegistryVerifyRoleOptions {
   json?: boolean;
 }
 
-export async function runRegistryVerifyRole(
-  opts: RegistryVerifyRoleOptions,
-): Promise<void> {
+export async function runRegistryVerifyRole(opts: RegistryVerifyRoleOptions): Promise<void> {
   const { OnchainRegistry } = await import("@swati/registry-onchain");
 
   const registry = new OnchainRegistry({
     network: parseNetwork(opts.network),
     ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
-    ...(opts.contractAddress
-      ? { contractAddress: opts.contractAddress as `0x${string}` }
-      : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
   });
 
   const spinner = ui.spinner(`Verifying role "${opts.role}"…`);

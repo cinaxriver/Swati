@@ -17,9 +17,13 @@ export interface ActTrace {
 
 export interface VaultConfig {
   evmRpc?: string;
+
   nodeRpc?: string;
+
   signingKey?: string;
+
   commitTimeoutMs?: number;
+
   commitRetries?: number;
 }
 
@@ -54,30 +58,21 @@ export class BlobVault implements Storage {
   private writeGate: Promise<unknown> = Promise.resolve();
 
   constructor(cfg: VaultConfig = {}) {
-    this.chainRpc =
-      cfg.evmRpc ?? process.env["ZEROG_EVM_RPC"] ?? CHAIN_RPC_DEFAULT;
-    this.nodeRpc =
-      cfg.nodeRpc ?? process.env["ZEROG_INDEXER_RPC"] ?? NODE_RPC_DEFAULT;
+    this.chainRpc = cfg.evmRpc ?? process.env["ZEROG_EVM_RPC"] ?? CHAIN_RPC_DEFAULT;
+    this.nodeRpc = cfg.nodeRpc ?? process.env["ZEROG_INDEXER_RPC"] ?? NODE_RPC_DEFAULT;
     const rawKey = cfg.signingKey ?? process.env["ZEROG_PRIVATE_KEY"] ?? "";
-    this.signingKey =
-      rawKey && !rawKey.startsWith("0x") ? `0x${rawKey}` : rawKey;
+    this.signingKey = rawKey && !rawKey.startsWith("0x") ? `0x${rawKey}` : rawKey;
     this.commitTimeoutMs = cfg.commitTimeoutMs ?? COMMIT_TIMEOUT_MS;
     this.commitRetries = cfg.commitRetries ?? COMMIT_RETRIES;
   }
 
-  async putManifest(
-    manifest: Manifest,
-  ): Promise<Result<{ uri: string; hash: string }>> {
+  async putManifest(manifest: Manifest): Promise<Result<{ uri: string; hash: string }>> {
     try {
       const bytes = new TextEncoder().encode(JSON.stringify(manifest));
       const hash = await this.commit(bytes);
       return ok({ uri: `0g://${hash}`, hash });
     } catch (cause) {
-      return err(
-        "VAULT_COMMIT_FAILED",
-        "BlobVault: manifest commit failed",
-        cause,
-      );
+      return err("VAULT_COMMIT_FAILED", "BlobVault: manifest commit failed", cause);
     }
   }
 
@@ -87,11 +82,7 @@ export class BlobVault implements Storage {
       const bytes = await this.retrieve(hash);
       return ok(JSON.parse(new TextDecoder().decode(bytes)) as Manifest);
     } catch (cause) {
-      return err(
-        "VAULT_FETCH_FAILED",
-        `BlobVault: manifest fetch failed for ${uri}`,
-        cause,
-      );
+      return err("VAULT_FETCH_FAILED", `BlobVault: manifest fetch failed for ${uri}`, cause);
     }
   }
 
@@ -105,11 +96,7 @@ export class BlobVault implements Storage {
       const hash = await this.commit(bytes);
       return ok({ uri: `0g://${hash}` });
     } catch (cause) {
-      return err(
-        "VAULT_COMMIT_FAILED",
-        "BlobVault: log snapshot commit failed",
-        cause,
-      );
+      return err("VAULT_COMMIT_FAILED", "BlobVault: log snapshot commit failed", cause);
     }
   }
 
@@ -119,26 +106,16 @@ export class BlobVault implements Storage {
       const bytes = await this.retrieve(hash);
       return ok(new TextDecoder().decode(bytes));
     } catch (cause) {
-      return err(
-        "VAULT_FETCH_FAILED",
-        `BlobVault: log snapshot fetch failed for ${uri}`,
-        cause,
-      );
+      return err("VAULT_FETCH_FAILED", `BlobVault: log snapshot fetch failed for ${uri}`, cause);
     }
   }
 
-  async putSource(
-    bytes: Uint8Array,
-  ): Promise<Result<{ uri: string; hash: string }>> {
+  async putSource(bytes: Uint8Array): Promise<Result<{ uri: string; hash: string }>> {
     try {
       const hash = await this.commit(bytes);
       return ok({ uri: `0g://${hash}`, hash: `sha256:${hash}` });
     } catch (cause) {
-      return err(
-        "VAULT_COMMIT_FAILED",
-        "BlobVault: source commit failed",
-        cause,
-      );
+      return err("VAULT_COMMIT_FAILED", "BlobVault: source commit failed", cause);
     }
   }
 
@@ -148,11 +125,7 @@ export class BlobVault implements Storage {
       const bytes = await this.retrieve(hash);
       return ok(bytes);
     } catch (cause) {
-      return err(
-        "VAULT_FETCH_FAILED",
-        `BlobVault: source fetch failed for ${uri}`,
-        cause,
-      );
+      return err("VAULT_FETCH_FAILED", `BlobVault: source fetch failed for ${uri}`, cause);
     }
   }
 
@@ -187,9 +160,7 @@ export class BlobVault implements Storage {
       const provider = this.lazyProvider();
       const [block, addr] = await Promise.all([
         provider.getBlockNumber(),
-        this.signingKey
-          ? this.lazySigner().getAddress()
-          : Promise.resolve(null),
+        this.signingKey ? this.lazySigner().getAddress() : Promise.resolve(null),
       ]);
       report.chainReachable = true;
       report.latestBlock = block;
@@ -257,10 +228,7 @@ export class BlobVault implements Storage {
 
     const deadline = new Promise<never>((_, reject) =>
       setTimeout(
-        () =>
-          reject(
-            new Error(`0G commit timed out after ${this.commitTimeoutMs}ms`),
-          ),
+        () => reject(new Error(`0G commit timed out after ${this.commitTimeoutMs}ms`)),
         this.commitTimeoutMs,
       ),
     );
@@ -290,9 +258,7 @@ export class BlobVault implements Storage {
         continue;
       }
       if (!blob) {
-        lastError = new Error(
-          `0G retrieve for ${hash.slice(0, 16)}… returned empty blob`,
-        );
+        lastError = new Error(`0G retrieve for ${hash.slice(0, 16)}… returned empty blob`);
         continue;
       }
       return new Uint8Array(await blob.arrayBuffer());
@@ -302,9 +268,7 @@ export class BlobVault implements Storage {
 
   private resolveAddress(uri: string): string {
     if (!uri.startsWith("0g://")) {
-      throw new Error(
-        `Invalid vault address: "${uri}". Expected format: 0g://<rootHash>`,
-      );
+      throw new Error(`Invalid vault address: "${uri}". Expected format: 0g://<rootHash>`);
     }
     return uri.slice(5);
   }

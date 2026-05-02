@@ -35,12 +35,19 @@ class NoopStorage implements Storage {
 
 export interface SimulateOptions<I = unknown> {
   input: I;
+
   llm?: LLMClient;
+
   gateProviders?: Record<string, GateProvider>;
+
   storage?: Storage;
+
   llms?: Record<RoleName, LLMClient>;
+
   peerTimeoutMs?: number;
+
   attestMaxWaitMs?: number;
+
   attestRetryMs?: number;
 }
 
@@ -59,8 +66,7 @@ export async function simulate<I = unknown, O = unknown>(
   const identities = await Promise.all(roles.map((r) => generateIdentity(r)));
   const transports = roles.map((r) => new InMemoryTransport(r));
 
-  const resolverMap: Record<string, { pubkey: string; transportId: string }> =
-    {};
+  const resolverMap: Record<string, { pubkey: string; transportId: string }> = {};
   for (let i = 0; i < roles.length; i++) {
     resolverMap[roles[i]!] = {
       pubkey: pubkeyToHex(identities[i]!.pubkey),
@@ -82,15 +88,9 @@ export async function simulate<I = unknown, O = unknown>(
         gateProviders: gates,
         llm,
         logPath,
-        ...(opts.peerTimeoutMs !== undefined
-          ? { peerTimeoutMs: opts.peerTimeoutMs }
-          : {}),
-        ...(opts.attestMaxWaitMs !== undefined
-          ? { attestMaxWaitMs: opts.attestMaxWaitMs }
-          : {}),
-        ...(opts.attestRetryMs !== undefined
-          ? { attestRetryMs: opts.attestRetryMs }
-          : {}),
+        ...(opts.peerTimeoutMs !== undefined ? { peerTimeoutMs: opts.peerTimeoutMs } : {}),
+        ...(opts.attestMaxWaitMs !== undefined ? { attestMaxWaitMs: opts.attestMaxWaitMs } : {}),
+        ...(opts.attestRetryMs !== undefined ? { attestRetryMs: opts.attestRetryMs } : {}),
       }).run(opts.input) as Promise<Result<O>>;
     }),
   );
@@ -108,10 +108,7 @@ export async function simulateRole<I = unknown, O = unknown>(
   const results = await simulate(choreo, opts);
   const r = results[role];
   if (r === undefined) {
-    return err(
-      "ROLE_NOT_FOUND",
-      `Role "${role}" is not declared in choreography "${choreo.name}"`,
-    );
+    return err("ROLE_NOT_FOUND", `Role "${role}" is not declared in choreography "${choreo.name}"`);
   }
   return r;
 }
@@ -132,11 +129,7 @@ export async function assertNoDeadlock<I = unknown>(
   for (const [role, result] of Object.entries(results)) {
     if (!result.ok) {
       const code = result.error.code;
-      if (
-        code === "PEER_TIMEOUT" ||
-        code === "CONDUCTOR_FAILED" ||
-        code === "CHOREO_MISMATCH"
-      ) {
+      if (code === "PEER_TIMEOUT" || code === "CONDUCTOR_FAILED" || code === "CHOREO_MISMATCH") {
         failures.push(`[${role}] ${code}: ${result.error.message}`);
       }
     }

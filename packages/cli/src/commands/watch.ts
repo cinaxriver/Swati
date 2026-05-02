@@ -23,25 +23,18 @@ export async function runWatch(opts: WatchOptions): Promise<void> {
     process.exit(1);
   }
 
-  const logDir = join(
-    process.env["SWATI_HOME"] ?? join(homedir(), ".swati"),
-    "logs",
-  );
+  const logDir = join(process.env["SWATI_HOME"] ?? join(homedir(), ".swati"), "logs");
 
   const rolesToWatch: string[] = opts.role ? [opts.role] : [...choreo.roles];
 
   ui.header(`swati watch — ${choreo.name}`);
   ui.dim(`Log dir: ${logDir}`);
-  ui.info(
-    `Watching roles: ${rolesToWatch.join(", ")} — press Ctrl+C to stop.\n`,
-  );
+  ui.info(`Watching roles: ${rolesToWatch.join(", ")} — press Ctrl+C to stop.\n`);
 
   for (const role of rolesToWatch) {
     const logPath = join(logDir, `${choreo.name}-${role}.jsonl`);
     if (!existsSync(logPath)) {
-      ui.warn(
-        `Log not found for role "${role}" — will tail when created: ${logPath}`,
-      );
+      ui.warn(`Log not found for role "${role}" — will tail when created: ${logPath}`);
     } else {
       ui.ok(`Tailing: ${logPath}`);
     }
@@ -111,9 +104,7 @@ function printAct(role: string, act: Record<string, unknown>): void {
     : "--:--:--.---";
   const id = String(act["id"] ?? "").slice(0, 8);
   const colorFn = KIND_COLORS[kind] ?? ((s: string) => chalk.white(s));
-  const payload = act["payload"]
-    ? JSON.stringify(act["payload"]).slice(0, 80)
-    : "";
+  const payload = act["payload"] ? JSON.stringify(act["payload"]).slice(0, 80) : "";
 
   console.log(
     chalk.dim(ts) +

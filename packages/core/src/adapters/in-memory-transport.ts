@@ -10,32 +10,18 @@ let idCounter = 0;
 
 export class InMemoryTransport implements Transport {
   private readonly id: string;
-  private readonly listeners: Array<
-    (msg: { from: string; bytes: Uint8Array }) => void
-  > = [];
+  private readonly listeners: Array<(msg: { from: string; bytes: Uint8Array }) => void> = [];
 
-  private readonly preRecvBuffer: Array<{ from: string; bytes: Uint8Array }> =
-    [];
+  private readonly preRecvBuffer: Array<{ from: string; bytes: Uint8Array }> = [];
 
-  private readonly listener: (envelope: {
-    to: string;
-    from: string;
-    bytes: Uint8Array;
-  }) => void;
+  private readonly listener: (envelope: { to: string; from: string; bytes: Uint8Array }) => void;
 
   constructor(id?: string) {
     this.id = id ?? `mem-node-${++idCounter}`;
-    this.listener = (envelope: {
-      to: string;
-      from: string;
-      bytes: Uint8Array;
-    }) => {
+    this.listener = (envelope: { to: string; from: string; bytes: Uint8Array }) => {
       if (envelope.to === this.id || envelope.to === "*") {
         if (this.listeners.length === 0) {
-          this.preRecvBuffer.push({
-            from: envelope.from,
-            bytes: envelope.bytes,
-          });
+          this.preRecvBuffer.push({ from: envelope.from, bytes: envelope.bytes });
         } else {
           for (const fn of this.listeners) {
             fn({ from: envelope.from, bytes: envelope.bytes });
@@ -61,8 +47,7 @@ export class InMemoryTransport implements Transport {
   }
 
   recv(): AsyncIterable<{ from: string; bytes: Uint8Array }> {
-    const queue: Array<{ from: string; bytes: Uint8Array }> =
-      this.preRecvBuffer.splice(0);
+    const queue: Array<{ from: string; bytes: Uint8Array }> = this.preRecvBuffer.splice(0);
     let resolve: (() => void) | null = null;
     let closed = false;
 

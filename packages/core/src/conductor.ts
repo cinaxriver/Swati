@@ -19,8 +19,10 @@ const ATTEST_MAX_WAIT_MS = 5 * 60_000;
 const LOG_SNAPSHOT_EVERY_N_ACTS = 20;
 
 export interface ConductorConfig {
-  choreography: ChoreographyDef;
+  choreography: ChoreographyDef<any, any>;
+
   choreoId?: string;
+
   runId?: string;
   role: RoleName;
   identity: Identity;
@@ -30,9 +32,13 @@ export interface ConductorConfig {
   gateProviders: Record<string, GateProvider>;
   llm: LLMClient;
   logPath?: string;
+
   peerTimeoutMs?: number;
+
   attestMaxWaitMs?: number;
+
   attestRetryMs?: number;
+
   ownTransport?: boolean;
 }
 
@@ -55,8 +61,7 @@ export class Conductor {
   private readonly lastPeerId: Map<RoleName, number> = new Map();
   private readonly peerTimedOut: Set<RoleName> = new Set();
 
-  private readonly pendingAttests: Map<RoleName, (choreoId: string) => void> =
-    new Map();
+  private readonly pendingAttests: Map<RoleName, (choreoId: string) => void> = new Map();
   private readonly attestBuffer: Map<RoleName, string> = new Map();
   private actCount = 0;
   private readonly peerTimeoutMs: number;
@@ -72,12 +77,9 @@ export class Conductor {
     this.peerTimeoutMs = cfg.peerTimeoutMs ?? PEER_TIMEOUT_MS;
     this.attestMaxWaitMs = cfg.attestMaxWaitMs ?? ATTEST_MAX_WAIT_MS;
     this.attestRetryMs = cfg.attestRetryMs ?? ATTEST_RETRY_MS;
-    this.runId =
-      cfg.runId ??
-      Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    this.runId = cfg.runId ?? Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const logDir =
-      cfg.logPath ??
-      join(process.env["SWATI_HOME"] ?? join(homedir(), ".swati"), "logs");
+      cfg.logPath ?? join(process.env["SWATI_HOME"] ?? join(homedir(), ".swati"), "logs");
     this.log = new AppendLog(
       join(logDir, `${cfg.choreography.name}-${cfg.role}-${this.runId}.jsonl`),
     );
@@ -103,11 +105,7 @@ export class Conductor {
       } else if ((cause as { code?: string }).code === "CHOREO_MISMATCH") {
         result = err("CHOREO_MISMATCH", (cause as Error).message);
       } else {
-        result = err(
-          "CONDUCTOR_FAILED",
-          "Choreography flow threw an error",
-          cause,
-        );
+        result = err("CONDUCTOR_FAILED", "Choreography flow threw an error", cause);
       }
     } finally {
       recvDone();
@@ -130,15 +128,7 @@ export class Conductor {
 
   private makeContext(input: unknown): ChoreoContext {
     const self = this;
-    const {
-      choreography,
-      role,
-      identity,
-      transport,
-      resolver,
-      gateProviders,
-      llm,
-    } = this.cfg;
+    const { choreography, role, identity, transport, resolver, gateProviders, llm } = this.cfg;
     const choreoId = self.choreoId;
 
     const roleHandles: Record<RoleName, RoleHandle> = {};
@@ -152,9 +142,7 @@ export class Conductor {
       to: RoleName,
     ): Promise<T> => {
       const actualValue: T =
-        value !== null &&
-        typeof value === "object" &&
-        "__locatedValue" in (value as object)
+        value !== null && typeof value === "object" && "__locatedValue" in (value as object)
           ? (value as import("./dsl.js").Located<T>).__locatedValue
           : (value as T);
 
@@ -162,13 +150,11 @@ export class Conductor {
         const resolved = await resolver.resolve(to);
         if (!resolved.ok) throw new Error(resolved.error.message);
 
-        const actResult = await self.log.append(
-          identity,
-          "send",
-          role,
-          choreoId,
-          { from, to, value: actualValue },
-        );
+        const actResult = await self.log.append(identity, "send", role, choreoId, {
+          from,
+          to,
+          value: actualValue,
+        });
         if (!actResult.ok) throw new Error(actResult.error.message);
         self.actCount++;
 
@@ -233,21 +219,14 @@ export class Conductor {
     ): Promise<import("./dsl.js").Located<T>> => {
       if (role === localRole) {
         const value = await fn();
-        const actResult = await self.log.append(
-          identity,
-          "do",
-          role,
-          choreoId,
-          { locally: localRole },
-        );
+        const actResult = await self.log.append(identity, "do", role, choreoId, {
+          locally: localRole,
+        });
         if (!actResult.ok) throw new Error(actResult.error.message);
         self.actCount++;
         return { __locatedRole: localRole, __locatedValue: value };
       }
-      return {
-        __locatedRole: localRole,
-        __locatedValue: undefined as unknown as T,
-      };
+      return { __locatedRole: localRole, __locatedValue: undefined as unknown as T };
     };
 
     const computeSend = async <T>(
@@ -273,22 +252,14 @@ export class Conductor {
         if (!llmResult.ok) throw new Error(llmResult.error.message);
 
         const raw = llmResult.value.trim();
-        const match = options.find(
-          (o) => o.toLowerCase() === raw.toLowerCase(),
-        );
+        const match = options.find((o) => o.toLowerCase() === raw.toLowerCase());
         const choice: O = (match ?? options[0]) as O;
 
-        const actResult = await self.log.append(
-          identity,
-          "choose",
-          role,
-          choreoId,
-          {
-            chooser: chooserRole,
-            choice,
-            options,
-          },
-        );
+        const actResult = await self.log.append(identity, "choose", role, choreoId, {
+          chooser: chooserRole,
+          choice,
+          options,
+        });
         if (!actResult.ok) throw new Error(actResult.error.message);
         self.actCount++;
 
@@ -312,8 +283,7 @@ export class Conductor {
               .filter((p) => p !== role)
               .map(async (p) => {
                 const resolved = await resolver.resolve(p);
-                if (resolved.ok)
-                  await transport.send(resolved.value.transportId, bytes);
+                if (resolved.ok) await transport.send(resolved.value.transportId, bytes);
               }),
           );
         } else {
@@ -358,23 +328,14 @@ export class Conductor {
       });
     };
 
-    const chooseIf = async (
-      choiceRole: RoleName,
-      condition: boolean,
-    ): Promise<boolean> => {
+    const chooseIf = async (choiceRole: RoleName, condition: boolean): Promise<boolean> => {
       if (role === choiceRole) {
         const choice = condition ? "true" : "false";
-        const actResult = await self.log.append(
-          identity,
-          "choose",
-          role,
-          choreoId,
-          {
-            chooser: choiceRole,
-            choice,
-            options: ["true", "false"],
-          },
-        );
+        const actResult = await self.log.append(identity, "choose", role, choreoId, {
+          chooser: choiceRole,
+          choice,
+          options: ["true", "false"],
+        });
         if (!actResult.ok) throw new Error(actResult.error.message);
         self.actCount++;
 
@@ -438,16 +399,10 @@ export class Conductor {
 
       const result = await provider.execute(fn);
 
-      const actResult = await self.log.append(
-        identity,
-        "gate",
-        role,
-        choreoId,
-        {
-          provider: providerName,
-          success: result.ok,
-        },
-      );
+      const actResult = await self.log.append(identity, "gate", role, choreoId, {
+        provider: providerName,
+        success: result.ok,
+      });
       if (!actResult.ok) throw new Error(actResult.error.message);
       self.actCount++;
 
@@ -467,10 +422,7 @@ export class Conductor {
 
     const persist = async (key: string, value: unknown): Promise<void> => {
       self.sharedState.set(key, value);
-      await self.log.append(identity, "persist", role, choreoId, {
-        key,
-        value,
-      });
+      await self.log.append(identity, "persist", role, choreoId, { key, value });
       self.actCount++;
     };
 
@@ -583,8 +535,7 @@ export class Conductor {
         if (!valid) break;
 
         const resolved = await this.cfg.resolver.resolve(attesterRole);
-        if (resolved.ok && pubkeyToHex(resolved.value.pubkey) !== attestPubHex)
-          break;
+        if (resolved.ok && pubkeyToHex(resolved.value.pubkey) !== attestPubHex) break;
 
         const cb = this.pendingAttests.get(attesterRole);
         if (cb) {
@@ -599,17 +550,11 @@ export class Conductor {
       case "send": {
         const msgChoreoId = envelope["choreoId"] as string | undefined;
         if (msgChoreoId && msgChoreoId !== this.choreoId) {
-          await this.log.append(
-            this.cfg.identity,
-            "ping",
-            this.cfg.role,
-            this.choreoId,
-            {
-              event: "choreo_mismatch",
-              expected: this.choreoId,
-              received: msgChoreoId,
-            },
-          );
+          await this.log.append(this.cfg.identity, "ping", this.cfg.role, this.choreoId, {
+            event: "choreo_mismatch",
+            expected: this.choreoId,
+            received: msgChoreoId,
+          });
           break;
         }
 
@@ -626,11 +571,7 @@ export class Conductor {
           const resolved = await this.cfg.resolver.resolve(senderRole);
           if (resolved.ok) {
             const { sig: _s, ...body } = envelope;
-            const valid = await verify(
-              resolved.value.pubkey,
-              hexToPubkey(sigHex),
-              body,
-            );
+            const valid = await verify(resolved.value.pubkey, hexToPubkey(sigHex), body);
             if (!valid) break;
           }
         }
@@ -647,17 +588,11 @@ export class Conductor {
       case "choose": {
         const msgChoreoId = envelope["choreoId"] as string | undefined;
         if (msgChoreoId && msgChoreoId !== this.choreoId) {
-          await this.log.append(
-            this.cfg.identity,
-            "ping",
-            this.cfg.role,
-            this.choreoId,
-            {
-              event: "choreo_mismatch",
-              expected: this.choreoId,
-              received: msgChoreoId,
-            },
-          );
+          await this.log.append(this.cfg.identity, "ping", this.cfg.role, this.choreoId, {
+            event: "choreo_mismatch",
+            expected: this.choreoId,
+            received: msgChoreoId,
+          });
           break;
         }
 
@@ -674,11 +609,7 @@ export class Conductor {
           const resolved = await this.cfg.resolver.resolve(chooserRole);
           if (resolved.ok) {
             const { sig: _s, ...body } = envelope;
-            const valid = await verify(
-              resolved.value.pubkey,
-              hexToPubkey(chooseSigHex),
-              body,
-            );
+            const valid = await verify(resolved.value.pubkey, hexToPubkey(chooseSigHex), body);
             if (!valid) break;
           }
         }
@@ -785,10 +716,7 @@ export class Conductor {
       await this.cfg.transport.broadcast(bytes);
 
       for (const [peerRole, lastSeen] of this.lastPeerId.entries()) {
-        if (
-          Date.now() - lastSeen > this.peerTimeoutMs &&
-          !this.peerTimedOut.has(peerRole)
-        ) {
+        if (Date.now() - lastSeen > this.peerTimeoutMs && !this.peerTimedOut.has(peerRole)) {
           this.peerTimedOut.add(peerRole);
           await this.log.append(
             this.cfg.identity,

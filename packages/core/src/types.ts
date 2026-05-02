@@ -16,19 +16,9 @@ export interface Act {
   signature: Signature;
 }
 
-export type ActKind =
-  | "do"
-  | "send"
-  | "choose"
-  | "gate"
-  | "persist"
-  | "recurse"
-  | "ping"
-  | "ack";
+export type ActKind = "do" | "send" | "choose" | "gate" | "persist" | "recurse" | "ping" | "ack";
 
-export type Result<T, E = SwatiError> =
-  | { ok: true; value: T }
-  | { ok: false; error: E };
+export type Result<T, E = SwatiError> = { ok: true; value: T } | { ok: false; error: E };
 
 export interface SwatiError {
   code: string;
@@ -40,11 +30,7 @@ export function ok<T>(value: T): Result<T> {
   return { ok: true, value };
 }
 
-export function err(
-  code: string,
-  message: string,
-  cause?: unknown,
-): Result<never> {
+export function err(code: string, message: string, cause?: unknown): Result<never> {
   return { ok: false, error: { code, message, cause } };
 }
 

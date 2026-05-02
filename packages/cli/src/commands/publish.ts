@@ -34,8 +34,7 @@ export async function runPublish(opts: PublishOptions): Promise<void> {
   spinner.text = "Uploading source...";
   const scorePath = resolve(opts.score);
   const sourceBytes = new Uint8Array(readFileSync(scorePath));
-  const sourceHash =
-    "sha256:" + createHash("sha256").update(sourceBytes).digest("hex");
+  const sourceHash = "sha256:" + createHash("sha256").update(sourceBytes).digest("hex");
 
   const sourceResult = await cfg.storage.putSource(sourceBytes);
   if (!sourceResult.ok) {
@@ -62,9 +61,7 @@ export async function runPublish(opts: PublishOptions): Promise<void> {
   ui.dim(`  Source URI:   ${sourceResult.value.uri}`);
   ui.dim(`  Source hash:  ${sourceHash}`);
   ui.dim(`  Roles:        ${manifest.roles.join(", ")}`);
-  ui.info(
-    `Run without source: swati run --id ${result.value.uri} --role <role>`,
-  );
+  ui.info(`Run without source: swati run --id ${result.value.uri} --role <role>`);
 
   if (opts.mint) {
     ui.info(

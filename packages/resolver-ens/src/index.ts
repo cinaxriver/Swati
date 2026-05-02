@@ -1,24 +1,20 @@
 import { createPublicClient, http } from "viem";
 import { mainnet, sepolia } from "viem/chains";
 import { normalize } from "viem/ens";
-import type {
-  IdentityResolver,
-  ResolvedIdentity,
-} from "@swati/core/interfaces";
+import type { IdentityResolver, ResolvedIdentity } from "@swati/core/interfaces";
 import type { Result } from "@swati/core";
 import { ok, err } from "@swati/core";
 import { hexToPubkey } from "@swati/core";
-import {
-  TEXT_RECORD_KEYS,
-  parseEnsRecords,
-  canJoinChoreography,
-} from "./text-records.js";
+import { TEXT_RECORD_KEYS, parseEnsRecords, canJoinChoreography } from "./text-records.js";
 import type { TextRecordKey } from "./text-records.js";
 
 export interface EnsResolverConfig {
   rpcUrl?: string;
+
   network?: "mainnet" | "sepolia";
+
   allowedChoreoId?: string;
+
   cacheTtlMs?: number;
 }
 
@@ -36,9 +32,7 @@ export class EnsResolver implements IdentityResolver {
   constructor(cfg: EnsResolverConfig = {}) {
     const network = cfg.network ?? "mainnet";
     const defaultRpc =
-      network === "mainnet"
-        ? "https://eth.llamarpc.com"
-        : "https://rpc.sepolia.org";
+      network === "mainnet" ? "https://eth.llamarpc.com" : "https://rpc.sepolia.org";
     const rpcUrl = cfg.rpcUrl ?? process.env["ETH_RPC_URL"] ?? defaultRpc;
 
     this.client = createPublicClient({
@@ -79,11 +73,7 @@ export class EnsResolver implements IdentityResolver {
 
       const keys = Object.values(TEXT_RECORD_KEYS) as TextRecordKey[];
       const values = await Promise.all(
-        keys.map((key) =>
-          this.client
-            .getEnsText({ name: normalizedName, key })
-            .catch(() => null),
-        ),
+        keys.map((key) => this.client.getEnsText({ name: normalizedName, key }).catch(() => null)),
       );
 
       const recordMap: Partial<Record<TextRecordKey, string>> = {};
@@ -101,10 +91,7 @@ export class EnsResolver implements IdentityResolver {
         );
       }
 
-      if (
-        this.allowedChoreoId &&
-        !canJoinChoreography(parsed, this.allowedChoreoId)
-      ) {
+      if (this.allowedChoreoId && !canJoinChoreography(parsed, this.allowedChoreoId)) {
         return err(
           "ENS_CHOREOGRAPHY_NOT_ALLOWED",
           `ENS name "${name}" is not authorized for choreography "${this.allowedChoreoId}".\n` +
@@ -121,11 +108,7 @@ export class EnsResolver implements IdentityResolver {
         caps: parsed.caps,
       });
     } catch (cause) {
-      return err(
-        "ENS_RESOLVE_FAILED",
-        `Failed to resolve ENS name "${name}"`,
-        cause,
-      );
+      return err("ENS_RESOLVE_FAILED", `Failed to resolve ENS name "${name}"`, cause);
     }
   }
 }

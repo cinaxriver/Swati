@@ -3,15 +3,7 @@ import { dirname } from "node:path";
 import { sha256 } from "@noble/hashes/sha256";
 import { canonicalBytes } from "./canonical.js";
 import { sign, verify, pubkeyToHex, hexToPubkey } from "./identity.js";
-import type {
-  Act,
-  ActId,
-  ActKind,
-  ChoreoId,
-  Identity,
-  Pubkey,
-  RoleName,
-} from "./types.js";
+import type { Act, ActId, ActKind, ChoreoId, Identity, Pubkey, RoleName } from "./types.js";
 import { ok, err } from "./types.js";
 import type { Result } from "./types.js";
 
@@ -58,9 +50,7 @@ export class AppendLog {
     if (this.loaded) return;
     this.loaded = true;
     if (!existsSync(this.filePath)) return;
-    const lines = readFileSync(this.filePath, "utf-8")
-      .split("\n")
-      .filter(Boolean);
+    const lines = readFileSync(this.filePath, "utf-8").split("\n").filter(Boolean);
     for (const line of lines) {
       const record = JSON.parse(line) as ActRecord;
       const act = fromRecord(record);
@@ -124,10 +114,7 @@ export class AppendLog {
     return ok(act);
   }
 
-  async appendExternal(
-    act: Act,
-    expectedPubkey: Pubkey,
-  ): Promise<Result<void>> {
+  async appendExternal(act: Act, expectedPubkey: Pubkey): Promise<Result<void>> {
     this.load();
 
     const actBody = {

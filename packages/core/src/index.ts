@@ -1,15 +1,5 @@
-export {
-  choreography,
-  located,
-  unwrapLocated,
-  polymorphicChoreography,
-} from "./dsl.js";
-export type {
-  ChoreographyDef,
-  ChoreoContext,
-  RoleHandle,
-  Located,
-} from "./dsl.js";
+export { choreography, located, unwrapLocated, polymorphicChoreography } from "./dsl.js";
+export type { ChoreographyDef, ChoreoContext, RoleHandle, Located } from "./dsl.js";
 
 export { simulate, simulateRole, assertNoDeadlock } from "./simulate.js";
 export type { SimulateOptions } from "./simulate.js";
@@ -43,6 +33,12 @@ export type {
   ActBeforeEvent,
   ActAfterEvent,
 } from "./runtime.js";
+
+export { InMemoryTransport } from "./adapters/in-memory-transport.js";
+export { StaticResolver } from "./adapters/static-resolver.js";
+export { LocalFileStorage } from "./adapters/local-file-storage.js";
+export { LocalGate } from "./adapters/local-gate.js";
+export { MockLLM } from "./adapters/mock-llm.js";
 
 export { ok, err } from "./types.js";
 export type {

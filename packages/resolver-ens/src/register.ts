@@ -1,10 +1,4 @@
-import {
-  createPublicClient,
-  createWalletClient,
-  http,
-  type Hash,
-  type Address,
-} from "viem";
+import { createPublicClient, createWalletClient, http, type Hash, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { mainnet, sepolia } from "viem/chains";
 import { normalize, namehash } from "viem/ens";
@@ -33,11 +27,17 @@ const RESOLVER_ABI = [
 
 export interface RegisterOptions {
   name: string;
+
   pubkeyHex: string;
+
   axlPubkey: string;
+
   capsUrl?: string;
+
   choreographies?: string[];
+
   repUrl?: string;
+
   walletPrivateKey: string;
   rpcUrl?: string;
   network?: "mainnet" | "sepolia";
@@ -48,15 +48,10 @@ export interface RegisterResult {
   recordsSet: string[];
 }
 
-export async function registerEnsRecords(
-  opts: RegisterOptions,
-): Promise<RegisterResult> {
+export async function registerEnsRecords(opts: RegisterOptions): Promise<RegisterResult> {
   const network = opts.network ?? "mainnet";
   const chain = network === "mainnet" ? mainnet : sepolia;
-  const defaultRpc =
-    network === "mainnet"
-      ? "https://eth.llamarpc.com"
-      : "https://rpc.sepolia.org";
+  const defaultRpc = network === "mainnet" ? "https://eth.llamarpc.com" : "https://rpc.sepolia.org";
   const rpcUrl = opts.rpcUrl ?? process.env["ETH_RPC_URL"] ?? defaultRpc;
 
   const normalizedName = normalize(opts.name);
@@ -68,15 +63,9 @@ export async function registerEnsRecords(
   const account = privateKeyToAccount(rawKey as `0x${string}`);
 
   const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
-  const walletClient = createWalletClient({
-    account,
-    chain,
-    transport: http(rpcUrl),
-  });
+  const walletClient = createWalletClient({ account, chain, transport: http(rpcUrl) });
 
-  const resolverAddress = await publicClient.getEnsResolver({
-    name: normalizedName,
-  });
+  const resolverAddress = await publicClient.getEnsResolver({ name: normalizedName });
   if (!resolverAddress) {
     throw new Error(
       `No resolver found for "${opts.name}". Make sure the name is registered and has a resolver set.`,
@@ -124,10 +113,7 @@ export async function lookupEnsRecords(
 ): Promise<LookupResult> {
   const network = opts.network ?? "mainnet";
   const chain = network === "mainnet" ? mainnet : sepolia;
-  const defaultRpc =
-    network === "mainnet"
-      ? "https://eth.llamarpc.com"
-      : "https://rpc.sepolia.org";
+  const defaultRpc = network === "mainnet" ? "https://eth.llamarpc.com" : "https://rpc.sepolia.org";
   const rpcUrl = opts.rpcUrl ?? process.env["ETH_RPC_URL"] ?? defaultRpc;
 
   const publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
@@ -139,9 +125,7 @@ export async function lookupEnsRecords(
 
   const keys = Object.values(TEXT_RECORD_KEYS);
   const values = await Promise.all(
-    keys.map((key) =>
-      publicClient.getEnsText({ name: normalizedName, key }).catch(() => null),
-    ),
+    keys.map((key) => publicClient.getEnsText({ name: normalizedName, key }).catch(() => null)),
   );
 
   const records: Partial<Record<string, string>> = {};

@@ -11,21 +11,14 @@ export function located<T, R extends string>(role: R, value: T): Located<T, R> {
 }
 
 export function unwrapLocated<T>(v: Located<T> | T): T {
-  if (
-    v !== null &&
-    typeof v === "object" &&
-    "__locatedValue" in (v as object)
-  ) {
+  if (v !== null && typeof v === "object" && "__locatedValue" in (v as object)) {
     return (v as Located<T>).__locatedValue;
   }
   return v as T;
 }
 
 export interface RoleHandle {
-  do(
-    prompt: string,
-    opts?: { system?: string; maxTokens?: number },
-  ): Promise<unknown>;
+  do(prompt: string, opts?: { system?: string; maxTokens?: number }): Promise<unknown>;
 }
 
 export interface ChoreoContext<I = unknown> {
@@ -45,17 +38,9 @@ export interface ChoreoContext<I = unknown> {
 
   locally<T>(role: RoleName, fn: () => Promise<T> | T): Promise<Located<T>>;
 
-  computeSend<T>(
-    from: RoleName,
-    to: RoleName,
-    fn: () => Promise<T> | T,
-  ): Promise<T>;
+  computeSend<T>(from: RoleName, to: RoleName, fn: () => Promise<T> | T): Promise<T>;
 
-  gate(
-    role: RoleName,
-    provider: string,
-    fn: () => Promise<unknown>,
-  ): Promise<Result<unknown>>;
+  gate(role: RoleName, provider: string, fn: () => Promise<unknown>): Promise<Result<unknown>>;
 
   persist(key: string, value: unknown): Promise<void>;
 
@@ -93,9 +78,9 @@ export function polymorphicChoreography<
   },
 ): (...roleNames: string[]) => ChoreographyDef<I, O> {
   return (...roleNames: string[]): ChoreographyDef<I, O> => {
-    const rolesObj = Object.fromEntries(
-      roleKeys.map((k, i) => [k, roleNames[i] ?? k]),
-    ) as { readonly [K in RoleKeys[number]]: K };
+    const rolesObj = Object.fromEntries(roleKeys.map((k, i) => [k, roleNames[i] ?? k])) as {
+      readonly [K in RoleKeys[number]]: K;
+    };
 
     const spec = makeSpec(rolesObj);
     const name = roleNames.join("-");
@@ -131,9 +116,7 @@ export const contextFactory: ContextFactory = {
       async do(prompt, opts) {
         const result = await llm.complete(prompt, {
           ...(opts?.system !== undefined ? { system: opts.system } : {}),
-          ...(opts?.maxTokens !== undefined
-            ? { maxTokens: opts.maxTokens }
-            : {}),
+          ...(opts?.maxTokens !== undefined ? { maxTokens: opts.maxTokens } : {}),
         });
         if (!result.ok) {
           throw new Error(`[${role}] LLM call failed: ${result.error.message}`);

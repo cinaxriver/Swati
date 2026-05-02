@@ -1,8 +1,5 @@
 import { readFileSync } from "node:fs";
-import type {
-  IdentityResolver,
-  ResolvedIdentity,
-} from "../interfaces/resolver.js";
+import type { IdentityResolver, ResolvedIdentity } from "../interfaces/resolver.js";
 import type { Pubkey, Result } from "../types.js";
 import { ok, err } from "../types.js";
 
@@ -17,10 +14,7 @@ export class StaticResolver implements IdentityResolver {
 
   constructor(source: string | Record<string, StaticEntry>) {
     if (typeof source === "string") {
-      const raw = JSON.parse(readFileSync(source, "utf-8")) as Record<
-        string,
-        StaticEntry
-      >;
+      const raw = JSON.parse(readFileSync(source, "utf-8")) as Record<string, StaticEntry>;
       this.map = new Map(Object.entries(raw));
     } else {
       this.map = new Map(Object.entries(source));
@@ -30,10 +24,7 @@ export class StaticResolver implements IdentityResolver {
   async resolve(name: string): Promise<Result<ResolvedIdentity>> {
     const entry = this.map.get(name);
     if (!entry) {
-      return err(
-        "RESOLVE_NOT_FOUND",
-        `No identity registered for role "${name}"`,
-      );
+      return err("RESOLVE_NOT_FOUND", `No identity registered for role "${name}"`);
     }
     const pubkey: Pubkey = hexToBytes(entry.pubkey);
     return ok({

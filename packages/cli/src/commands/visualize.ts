@@ -9,11 +9,7 @@ type Action =
   | { type: "broadcast"; from: string; label: string }
   | { type: "condition"; condition: string; label: string };
 
-export async function runVisualize(opts: {
-  score: string;
-  format?: string;
-  mermaidOut?: string;
-}) {
+export async function runVisualize(opts: { score: string; format?: string; mermaidOut?: string }) {
   const filePath = resolve(opts.score);
   let code: string;
   try {
@@ -38,9 +34,7 @@ export async function runVisualize(opts: {
   const lines = code.split("\n");
   let step = 1;
   for (const line of lines) {
-    const sendMatch = line.match(
-      /c\.send\([^,]+,\s*"([^"]+)"\s*,\s*"([^"]+)"\)/,
-    );
+    const sendMatch = line.match(/c\.send\([^,]+,\s*"([^"]+)"\s*,\s*"([^"]+)"\)/);
     if (sendMatch) {
       actions.push({
         type: "send",
@@ -79,12 +73,7 @@ export async function runVisualize(opts: {
     if (doMatch) {
       const role = doMatch[1]!;
       if (nodes.has(role)) {
-        actions.push({
-          type: "local",
-          role,
-          action: "do",
-          label: `${step}. do (LLM)`,
-        });
+        actions.push({ type: "local", role, action: "do", label: `${step}. do (LLM)` });
         step++;
       }
       continue;
@@ -114,20 +103,14 @@ export async function runVisualize(opts: {
 
     const elseMatch = line.match(/else\s*\{/);
     if (elseMatch && !line.includes("if")) {
-      actions.push({
-        type: "condition",
-        condition: "else",
-        label: `${step}. else`,
-      });
+      actions.push({ type: "condition", condition: "else", label: `${step}. else` });
       step++;
       continue;
     }
   }
 
   if (nodes.size === 0) {
-    ui.warn(
-      "No roles found in the choreography. Visualization might be incomplete.",
-    );
+    ui.warn("No roles found in the choreography. Visualization might be incomplete.");
   }
 
   const format = opts.format || "ascii";
@@ -161,15 +144,11 @@ function renderAscii(actions: Action[], roles: string[]) {
   for (const act of actions) {
     if (act.type === "condition") {
       console.log(chalk.dim("   │"));
-      console.log(
-        chalk.dim("   ├─ ") +
-          chalk.hex("#fbbf24").italic(`branch: if ${act.condition}`),
-      );
+      console.log(chalk.dim("   ├─ ") + chalk.hex("#fbbf24").italic(`branch: if ${act.condition}`));
       continue;
     }
 
-    const actor =
-      act.type === "send" || act.type === "broadcast" ? act.from : act.role;
+    const actor = act.type === "send" || act.type === "broadcast" ? act.from : act.role;
 
     if (actor !== currentRole) {
       if (currentRole !== "") {
@@ -180,12 +159,8 @@ function renderAscii(actions: Action[], roles: string[]) {
     }
 
     if (act.type === "local") {
-      const text =
-        act.action === "do"
-          ? "do (llm inference)"
-          : "gate (execute side-effect)";
-      const color =
-        act.action === "do" ? chalk.hex("#34d399") : chalk.hex("#f87171");
+      const text = act.action === "do" ? "do (llm inference)" : "gate (execute side-effect)";
+      const color = act.action === "do" ? chalk.hex("#34d399") : chalk.hex("#f87171");
       console.log(chalk.dim("   │"));
       console.log(chalk.dim("   ├─ ") + color(`local: ${text}`));
     } else if (act.type === "send") {
@@ -198,16 +173,11 @@ function renderAscii(actions: Action[], roles: string[]) {
       );
     } else if (act.type === "broadcast") {
       console.log(chalk.dim("   │"));
-      console.log(
-        chalk.dim("   ├─ ") + chalk.hex("#60a5fa")("choose (broadcast)"),
-      );
+      console.log(chalk.dim("   ├─ ") + chalk.hex("#60a5fa")("choose (broadcast)"));
       const others = roles.filter((r) => r !== actor);
       for (let i = 0; i < others.length; i++) {
         const char = i === others.length - 1 ? "└" : "├";
-        console.log(
-          chalk.dim(`   │  ${char}──> `) +
-            chalk.hex("#a78bfa")(`[${others[i]}]`),
-        );
+        console.log(chalk.dim(`   │  ${char}──> `) + chalk.hex("#a78bfa")(`[${others[i]}]`));
       }
     }
   }
@@ -216,11 +186,7 @@ function renderAscii(actions: Action[], roles: string[]) {
 }
 
 function renderMermaid(actions: Action[], roles: string[]): string {
-  const lines = [
-    "sequenceDiagram",
-    "  autonumber",
-    ...roles.map((n) => `  participant ${n}`),
-  ];
+  const lines = ["sequenceDiagram", "  autonumber", ...roles.map((n) => `  participant ${n}`)];
 
   for (const edge of actions) {
     if (edge.type === "local") {

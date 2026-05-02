@@ -26,18 +26,11 @@ export async function mintChoreographyNft(
   const provider = new ethers.JsonRpcProvider(config.rpcUrl);
   const wallet = new ethers.Wallet(config.privateKey, provider);
 
-  const contract = new ethers.Contract(
-    config.contractAddress,
-    INFT_ABI,
-    wallet,
-  );
+  const contract = new ethers.Contract(config.contractAddress, INFT_ABI, wallet);
 
   const to = recipientAddress ?? wallet.address;
   const tx = await (
-    contract["mint"] as (
-      to: string,
-      uri: string,
-    ) => Promise<ethers.ContractTransactionResponse>
+    contract["mint"] as (to: string, uri: string) => Promise<ethers.ContractTransactionResponse>
   )(to, zeroGUri);
   const receipt = await tx.wait();
 

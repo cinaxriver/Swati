@@ -14,9 +14,7 @@ export class LocalFileStorage implements Storage {
     mkdirSync(join(this.basePath, "logs"), { recursive: true });
   }
 
-  async putManifest(
-    manifest: Manifest,
-  ): Promise<Result<{ uri: string; hash: string }>> {
+  async putManifest(manifest: Manifest): Promise<Result<{ uri: string; hash: string }>> {
     try {
       const json = JSON.stringify(manifest, null, 2);
       const hashBytes = sha256(new TextEncoder().encode(json));
@@ -70,9 +68,7 @@ export class LocalFileStorage implements Storage {
     }
   }
 
-  async putSource(
-    bytes: Uint8Array,
-  ): Promise<Result<{ uri: string; hash: string }>> {
+  async putSource(bytes: Uint8Array): Promise<Result<{ uri: string; hash: string }>> {
     try {
       const hashBytes = sha256(bytes);
       const hash = toHex(hashBytes);

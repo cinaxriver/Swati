@@ -16,9 +16,7 @@ export async function runEnsLookup(opts: EnsLookupOptions): Promise<void> {
 
   let result: Awaited<ReturnType<typeof lookupEnsRecords>>;
   try {
-    const lookupOpts: { network: "mainnet" | "sepolia"; rpcUrl?: string } = {
-      network,
-    };
+    const lookupOpts: { network: "mainnet" | "sepolia"; rpcUrl?: string } = { network };
     if (opts.rpcUrl) lookupOpts.rpcUrl = opts.rpcUrl;
     result = await lookupEnsRecords(opts.name, lookupOpts);
   } catch (cause) {
@@ -54,8 +52,7 @@ export async function runEnsLookup(opts: EnsLookupOptions): Promise<void> {
     }
   }
 
-  const hasRequired =
-    result.records["swati.pubkey"] && result.records["swati.axl_pubkey"];
+  const hasRequired = result.records["swati.pubkey"] && result.records["swati.axl_pubkey"];
 
   console.log();
   if (hasRequired) {
@@ -152,28 +149,20 @@ export async function runEnsCheck(opts: EnsCheckOptions): Promise<void> {
   if (opts.rpcUrl) resolverCfg.rpcUrl = opts.rpcUrl;
   const resolver = new EnsResolver(resolverCfg);
 
-  const spinner = ui.spinner(
-    `Checking ${opts.name} for choreo ${opts.choreoId}…`,
-  );
+  const spinner = ui.spinner(`Checking ${opts.name} for choreo ${opts.choreoId}…`);
   spinner.start();
 
   const result = await resolver.resolve(opts.name);
   spinner.stop();
 
   if (opts.json) {
-    ui.json(
-      result.ok
-        ? { ok: true, identity: result.value }
-        : { ok: false, error: result.error },
-    );
+    ui.json(result.ok ? { ok: true, identity: result.value } : { ok: false, error: result.error });
     return;
   }
 
   if (result.ok) {
     ui.ok(`${opts.name} is authorized to join choreography "${opts.choreoId}"`);
-    ui.dim(
-      `  pubkey:      ${Buffer.from(result.value.pubkey).toString("hex").slice(0, 16)}…`,
-    );
+    ui.dim(`  pubkey:      ${Buffer.from(result.value.pubkey).toString("hex").slice(0, 16)}…`);
     ui.dim(`  transportId: ${result.value.transportId.slice(0, 20)}…`);
   } else {
     ui.error(result.error.message);

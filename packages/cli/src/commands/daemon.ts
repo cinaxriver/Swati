@@ -24,9 +24,7 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
   ui.ok(`Swati daemon started (HTTP API on :${port})`);
 
   if (cfg.choreographies && Object.keys(cfg.choreographies).length > 0) {
-    ui.ok(
-      `Registered choreographies: ${Object.keys(cfg.choreographies).join(", ")}`,
-    );
+    ui.ok(`Registered choreographies: ${Object.keys(cfg.choreographies).join(", ")}`);
   }
 
   const server = http.createServer(async (req, res) => {
@@ -37,8 +35,7 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
           choreographies: Object.keys(cfg.choreographies ?? {}),
           activeRuns: runtime
             .listRuns()
-            .filter((r) => r.status === "running" || r.status === "pending")
-            .length,
+            .filter((r) => r.status === "running" || r.status === "pending").length,
         }),
       );
       return;
@@ -51,10 +48,7 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
 
     try {
       const body = await readBody(req);
-      const msg = JSON.parse(body) as {
-        method: string;
-        params: Record<string, unknown>;
-      };
+      const msg = JSON.parse(body) as { method: string; params: Record<string, unknown> };
 
       switch (msg.method) {
         case "swati.submit": {
@@ -66,9 +60,7 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
           if (!choreoName || !role) {
             res
               .writeHead(400, { "Content-Type": "application/json" })
-              .end(
-                JSON.stringify({ error: "choreoName and role are required" }),
-              );
+              .end(JSON.stringify({ error: "choreoName and role are required" }));
             break;
           }
 
@@ -76,18 +68,12 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
           if (!choreo) {
             res
               .writeHead(404, { "Content-Type": "application/json" })
-              .end(
-                JSON.stringify({
-                  error: `choreography "${choreoName}" not found`,
-                }),
-              );
+              .end(JSON.stringify({ error: `choreography "${choreoName}" not found` }));
             break;
           }
 
           const runId = await runtime.submit(choreo, role, input, identityFile);
-          res
-            .writeHead(200, { "Content-Type": "application/json" })
-            .end(JSON.stringify({ runId }));
+          res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify({ runId }));
           break;
         }
 
@@ -101,8 +87,7 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
 
         case "swati.getResult": {
           const runId = msg.params["runId"] as string;
-          const timeoutMs =
-            (msg.params["timeoutMs"] as number | undefined) ?? 30_000;
+          const timeoutMs = (msg.params["timeoutMs"] as number | undefined) ?? 30_000;
 
           const immediate = runtime.getResult(runId);
           if (immediate) {
@@ -113,9 +98,7 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
           }
 
           const result = await runtime.waitFor(runId, timeoutMs);
-          res
-            .writeHead(200, { "Content-Type": "application/json" })
-            .end(JSON.stringify(result));
+          res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(result));
           break;
         }
 
@@ -129,19 +112,15 @@ export async function runDaemon(opts: DaemonOptions): Promise<void> {
         case "swati.stopRun": {
           res
             .writeHead(501, { "Content-Type": "application/json" })
-            .end(
-              JSON.stringify({ error: "per-run cancel not yet implemented" }),
-            );
+            .end(JSON.stringify({ error: "per-run cancel not yet implemented" }));
           break;
         }
 
         case "swati.listChoreographies": {
-          const choreos = Object.entries(cfg.choreographies ?? {}).map(
-            ([name, c]) => ({
-              name,
-              roles: c.roles,
-            }),
-          );
+          const choreos = Object.entries(cfg.choreographies ?? {}).map(([name, c]) => ({
+            name,
+            roles: c.roles,
+          }));
           res
             .writeHead(200, { "Content-Type": "application/json" })
             .end(JSON.stringify({ choreographies: choreos }));

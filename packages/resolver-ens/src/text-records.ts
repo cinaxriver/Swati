@@ -10,8 +10,7 @@ export const TEXT_RECORD_KEYS = {
   REP: "swati.rep",
 } as const;
 
-export type TextRecordKey =
-  (typeof TEXT_RECORD_KEYS)[keyof typeof TEXT_RECORD_KEYS];
+export type TextRecordKey = (typeof TEXT_RECORD_KEYS)[keyof typeof TEXT_RECORD_KEYS];
 
 export interface SwatiEnsRecord {
   axlPubkey: string;
@@ -46,10 +45,7 @@ export function parseEnsRecords(
   return record;
 }
 
-export function canJoinChoreography(
-  record: SwatiEnsRecord,
-  choreoId: string,
-): boolean {
+export function canJoinChoreography(record: SwatiEnsRecord, choreoId: string): boolean {
   if (!record.choreographies || record.choreographies.length === 0) return true;
   return record.choreographies.includes(choreoId);
 }

@@ -33,9 +33,7 @@ export async function runJoin(opts: JoinOptions): Promise<void> {
 
   if (missingGates.length > 0) {
     ui.warn(`Missing gate providers: ${missingGates.join(", ")}`);
-    ui.info(
-      "Register these gate providers in your swati.config.ts before running.",
-    );
+    ui.info("Register these gate providers in your swati.config.ts before running.");
   } else {
     ui.ok("All required gate providers are available");
   }

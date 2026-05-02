@@ -42,9 +42,7 @@ program
 
 program
   .command("init")
-  .description(
-    "Initialize a new swati project with a template choreography and vanilla config",
-  )
+  .description("Initialize a new swati project with a template choreography and vanilla config")
   .option("--name <name>", "choreography name", "my-choreo")
   .action(async (opts: { name?: string }) => {
     await runInit(opts);
@@ -97,16 +95,9 @@ program
   .option("--config <file>", "path to swati.config.ts")
   .option("--mint", "also mint an ERC-7857 iNFT (requires 0G config)")
   .option("--json", "output as JSON")
-  .action(
-    async (opts: {
-      score: string;
-      config?: string;
-      mint?: boolean;
-      json?: boolean;
-    }) => {
-      await runPublish(opts);
-    },
-  );
+  .action(async (opts: { score: string; config?: string; mint?: boolean; json?: boolean }) => {
+    await runPublish(opts);
+  });
 
 program
   .command("verify <uri>")
@@ -119,9 +110,7 @@ program
 
 program
   .command("join <uri>")
-  .description(
-    "Fetch a choreography manifest by URI and validate local plugin availability",
-  )
+  .description("Fetch a choreography manifest by URI and validate local plugin availability")
   .option("--config <file>", "path to swati.config.ts")
   .option("--json", "output as JSON")
   .action(async (uri: string, opts: { config?: string; json?: boolean }) => {
@@ -130,9 +119,7 @@ program
 
 program
   .command("watch")
-  .description(
-    "Tail the live act log of a running choreography (not yet implemented)",
-  )
+  .description("Tail the live act log of a running choreography (not yet implemented)")
   .requiredOption("--score <file>", "path to .choreo.ts choreography file")
   .option("--role <role>", "filter to a specific role")
   .option("--config <file>", "path to swati.config.ts")
@@ -142,17 +129,13 @@ program
 
 program
   .command("visualize")
-  .description(
-    "Visualize the choreography flow as ASCII art or Mermaid diagram",
-  )
+  .description("Visualize the choreography flow as ASCII art or Mermaid diagram")
   .requiredOption("--score <file>", "path to .choreo.ts choreography file")
   .option("--format <type>", "output format: 'ascii' or 'mermaid'", "ascii")
   .option("--mermaid-out <file>", "export mermaid diagram to file")
-  .action(
-    async (opts: { score: string; format?: string; mermaidOut?: string }) => {
-      await runVisualize(opts);
-    },
-  );
+  .action(async (opts: { score: string; format?: string; mermaidOut?: string }) => {
+    await runVisualize(opts);
+  });
 
 program
   .command("mint <uri>")
@@ -175,31 +158,18 @@ ens
   .option("--network <net>", "mainnet or sepolia", "mainnet")
   .option("--rpc-url <url>", "custom RPC endpoint")
   .option("--json", "output as JSON")
-  .action(
-    async (
-      name: string,
-      opts: { network?: string; rpcUrl?: string; json?: boolean },
-    ) => {
-      await runEnsLookup({ name, ...opts });
-    },
-  );
+  .action(async (name: string, opts: { network?: string; rpcUrl?: string; json?: boolean }) => {
+    await runEnsLookup({ name, ...opts });
+  });
 
 ens
   .command("register <name>")
-  .description(
-    "Write swati identity records to an ENS name (requires wallet key)",
-  )
+  .description("Write swati identity records to an ENS name (requires wallet key)")
   .requiredOption("--pubkey <hex>", "ed25519 pubkey hex from `swati keygen`")
   .requiredOption("--axl-pubkey <base64>", "AXL peer ID from AXL node config")
-  .requiredOption(
-    "--wallet-key <hex>",
-    "private key of the wallet that owns the ENS name",
-  )
+  .requiredOption("--wallet-key <hex>", "private key of the wallet that owns the ENS name")
   .option("--caps-url <url>", "URL to capability manifest JSON")
-  .option(
-    "--choreographies <ids>",
-    "comma-separated choreography IDs this name may join",
-  )
+  .option("--choreographies <ids>", "comma-separated choreography IDs this name may join")
   .option("--rep-url <url>", "URL to reputation oracle")
   .option("--network <net>", "mainnet or sepolia", "mainnet")
   .option("--rpc-url <url>", "custom RPC endpoint")
@@ -225,25 +195,15 @@ ens
 
 ens
   .command("check <name>")
-  .description(
-    "Verify that an ENS name is authorized to join a specific choreography",
-  )
-  .requiredOption(
-    "--choreo-id <id>",
-    "choreography manifest ID to check against",
-  )
+  .description("Verify that an ENS name is authorized to join a specific choreography")
+  .requiredOption("--choreo-id <id>", "choreography manifest ID to check against")
   .option("--network <net>", "mainnet or sepolia", "mainnet")
   .option("--rpc-url <url>", "custom RPC endpoint")
   .option("--json", "output as JSON")
   .action(
     async (
       name: string,
-      opts: {
-        choreoId: string;
-        network?: string;
-        rpcUrl?: string;
-        json?: boolean;
-      },
+      opts: { choreoId: string; network?: string; rpcUrl?: string; json?: boolean },
     ) => {
       await runEnsCheck({ name, ...opts });
     },
@@ -264,19 +224,10 @@ const REG_OPTS = (cmd: ReturnType<typeof reg.command>) =>
 
 REG_OPTS(reg.command("register"))
   .description("Register a published choreography manifest on-chain")
-  .requiredOption(
-    "--manifest-id <id>",
-    "swati manifest ID (from `swati publish`)",
-  )
-  .requiredOption(
-    "--wallet-key <hex>",
-    "private key of the wallet that owns the registration",
-  )
+  .requiredOption("--manifest-id <id>", "swati manifest ID (from `swati publish`)")
+  .requiredOption("--wallet-key <hex>", "private key of the wallet that owns the registration")
   .option("--source-uri <uri>", "override source URI stored in the manifest")
-  .option(
-    "--manifest-uri <uri>",
-    "override manifest URI stored in the manifest",
-  )
+  .option("--manifest-uri <uri>", "override manifest URI stored in the manifest")
   .action(
     async (opts: {
       manifestId: string;
@@ -294,16 +245,10 @@ REG_OPTS(reg.command("register"))
 
 REG_OPTS(reg.command("register-role"))
   .description("Register an ed25519 role identity for a choreography")
-  .requiredOption(
-    "--choreo-id <bytes32>",
-    "on-chain choreoId from `registry register`",
-  )
+  .requiredOption("--choreo-id <bytes32>", "on-chain choreoId from `registry register`")
   .requiredOption("--role <name>", "role name (e.g. analyst)")
   .requiredOption("--pubkey <hex>", "ed25519 pubkey hex from `swati keygen`")
-  .requiredOption(
-    "--wallet-key <hex>",
-    "private key of the choreography publisher",
-  )
+  .requiredOption("--wallet-key <hex>", "private key of the choreography publisher")
   .option("--ens-name <name>", "optional ENS subname (e.g. analyst.alice.eth)")
   .option("--axl-peer-id <id>", "optional AXL peer ID")
   .action(
@@ -327,18 +272,9 @@ REG_OPTS(reg.command("link-invoke"))
   .description(
     "Declare on-chain that a parent choreography may invoke a child (mirrors c.invoke())",
   )
-  .requiredOption(
-    "--parent-id <id>",
-    "parent choreography manifest ID or bytes32",
-  )
-  .requiredOption(
-    "--child-id <id>",
-    "child choreography manifest ID or bytes32",
-  )
-  .requiredOption(
-    "--wallet-key <hex>",
-    "private key of the parent choreography publisher",
-  )
+  .requiredOption("--parent-id <id>", "parent choreography manifest ID or bytes32")
+  .requiredOption("--child-id <id>", "child choreography manifest ID or bytes32")
+  .requiredOption("--wallet-key <hex>", "private key of the parent choreography publisher")
   .action(
     async (opts: {
       parentId: string;
@@ -354,22 +290,11 @@ REG_OPTS(reg.command("link-invoke"))
   );
 
 REG_OPTS(reg.command("anchor-log"))
-  .description(
-    "Anchor an execution log hash on-chain for verifiable audit trail",
-  )
+  .description("Anchor an execution log hash on-chain for verifiable audit trail")
   .requiredOption("--manifest-id <id>", "swati manifest ID of the choreography")
-  .requiredOption(
-    "--log-uri <uri>",
-    "storage URI where the full JSONL log is stored",
-  )
-  .requiredOption(
-    "--wallet-key <hex>",
-    "private key to sign the anchor transaction",
-  )
-  .option(
-    "--log-file <path>",
-    "path to JSONL log file (used to compute log root hash)",
-  )
+  .requiredOption("--log-uri <uri>", "storage URI where the full JSONL log is stored")
+  .requiredOption("--wallet-key <hex>", "private key to sign the anchor transaction")
+  .option("--log-file <path>", "path to JSONL log file (used to compute log root hash)")
   .action(
     async (opts: {
       manifestId: string;
@@ -422,9 +347,7 @@ REG_OPTS(reg.command("verify-role"))
 
 program
   .command("daemon")
-  .description(
-    "Start Swati as a long-running daemon with HTTP API (port 7420 by default)",
-  )
+  .description("Start Swati as a long-running daemon with HTTP API (port 7420 by default)")
   .option("--port <n>", "HTTP API port", "7420")
   .option("--config <file>", "path to swati.config.ts")
   .action(async (opts: { port?: string; config?: string }) => {

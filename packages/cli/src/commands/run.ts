@@ -4,11 +4,7 @@ import { writeFileSync, unlinkSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import {
-  generateIdentity,
-  loadIdentityFromFile,
-  loadIdentityFromHex,
-} from "@swati/core";
+import { generateIdentity, loadIdentityFromFile, loadIdentityFromHex } from "@swati/core";
 import { Conductor } from "@swati/core";
 import { loadConfig } from "../config-loader.js";
 import { ui } from "../ui.js";
@@ -49,9 +45,7 @@ export async function runRun(opts: RunOptions): Promise<void> {
 
     const manifest = manifestResult.value;
     if (!manifest.sourceUri) {
-      spinner.fail(
-        "Manifest has no sourceUri — was it published with `swati publish`?",
-      );
+      spinner.fail("Manifest has no sourceUri — was it published with `swati publish`?");
       process.exit(1);
     }
 
@@ -65,9 +59,7 @@ export async function runRun(opts: RunOptions): Promise<void> {
 
     if (manifest.sourceHash) {
       const expected = manifest.sourceHash.replace(/^sha256:/, "");
-      const actual = createHash("sha256")
-        .update(sourceResult.value)
-        .digest("hex");
+      const actual = createHash("sha256").update(sourceResult.value).digest("hex");
       if (expected !== actual) {
         spinner.fail("Source integrity check failed — hash mismatch");
         ui.error(`Expected: ${expected}`);
@@ -78,10 +70,7 @@ export async function runRun(opts: RunOptions): Promise<void> {
       resolvedChoreoId = `${manifest.name}@${manifest.sourceHash}`;
     }
 
-    tmpScorePath = join(
-      tmpdir(),
-      `swati-run-${manifest.name}-${Date.now()}.choreo.ts`,
-    );
+    tmpScorePath = join(tmpdir(), `swati-run-${manifest.name}-${Date.now()}.choreo.ts`);
     writeFileSync(tmpScorePath, sourceResult.value);
     opts = { ...opts, score: tmpScorePath };
     spinner.text = `Source verified: ${manifest.name} (${manifest.sourceHash?.slice(0, 20)}…)`;
@@ -106,15 +95,12 @@ export async function runRun(opts: RunOptions): Promise<void> {
 
   if (!resolvedChoreoId && opts.score && !tmpScorePath) {
     const scoreBytes = readFileSync(resolve(opts.score));
-    const hash =
-      "sha256:" + createHash("sha256").update(scoreBytes).digest("hex");
+    const hash = "sha256:" + createHash("sha256").update(scoreBytes).digest("hex");
     resolvedChoreoId = `${choreo.name}@${hash}`;
   }
 
   if (!choreo.roles.includes(opts.role)) {
-    spinner.fail(
-      `Role "${opts.role}" is not defined in choreography "${choreo.name}"`,
-    );
+    spinner.fail(`Role "${opts.role}" is not defined in choreography "${choreo.name}"`);
     ui.info(`Available roles: ${choreo.roles.join(", ")}`);
     if (tmpScorePath) {
       try {
@@ -130,10 +116,7 @@ export async function runRun(opts: RunOptions): Promise<void> {
   if (opts.identityFile) {
     identity = await loadIdentityFromFile(opts.identityFile);
   } else if (process.env["SWATI_PRIVKEY_HEX"]) {
-    identity = await loadIdentityFromHex(
-      process.env["SWATI_PRIVKEY_HEX"],
-      opts.role,
-    );
+    identity = await loadIdentityFromHex(process.env["SWATI_PRIVKEY_HEX"], opts.role);
   } else {
     ui.warn(
       "No --identity-file or SWATI_PRIVKEY_HEX — generating ephemeral identity (log chain will not persist across restarts)",
@@ -147,9 +130,7 @@ export async function runRun(opts: RunOptions): Promise<void> {
   for (const r of choreo.roles) {
     const resolved = await cfg.resolver.resolve(r);
     if (!resolved.ok) {
-      spinner.fail(
-        `Role "${r}" not found in resolver — add it to identities.json`,
-      );
+      spinner.fail(`Role "${r}" not found in resolver — add it to identities.json`);
       if (tmpScorePath) {
         try {
           unlinkSync(tmpScorePath);
@@ -158,20 +139,13 @@ export async function runRun(opts: RunOptions): Promise<void> {
       process.exit(1);
     }
   }
-  if (
-    typeof (cfg.transport as Record<string, unknown>)["awaitReady"] ===
-    "function"
-  ) {
+  if (typeof (cfg.transport as unknown as Record<string, unknown>)["awaitReady"] === "function") {
     const ready = await Promise.race([
-      (cfg.transport as unknown as { awaitReady(): Promise<void> })
-        .awaitReady()
-        .then(() => true),
+      (cfg.transport as unknown as { awaitReady(): Promise<void> }).awaitReady().then(() => true),
       new Promise<boolean>((r) => setTimeout(() => r(false), 5000)),
     ]);
     if (!ready) {
-      spinner.fail(
-        "Transport endpoint unreachable within 5s — is AXL running?",
-      );
+      spinner.fail("Transport endpoint unreachable within 5s — is AXL running?");
       if (tmpScorePath) {
         try {
           unlinkSync(tmpScorePath);
@@ -211,9 +185,7 @@ export async function runRun(opts: RunOptions): Promise<void> {
   const choreoIdDisplay = resolvedChoreoId
     ? `${choreo.name} (${resolvedChoreoId.split("@")[1]?.slice(0, 20)}…)`
     : choreo.name;
-  ui.info(
-    `Conductor ready — role: ${opts.role}, choreo: ${choreoIdDisplay}, runId: ${runId}`,
-  );
+  ui.info(`Conductor ready — role: ${opts.role}, choreo: ${choreoIdDisplay}, runId: ${runId}`);
   ui.info(`Waiting for peers and executing steps...`);
 
   const start = Date.now();

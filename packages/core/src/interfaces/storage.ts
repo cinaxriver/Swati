@@ -1,9 +1,7 @@
 import type { ChoreoId, Manifest, Result, RoleName } from "../types.js";
 
 export interface Storage {
-  putManifest(
-    manifest: Manifest,
-  ): Promise<Result<{ uri: string; hash: string }>>;
+  putManifest(manifest: Manifest): Promise<Result<{ uri: string; hash: string }>>;
   getManifest(uri: string): Promise<Result<Manifest>>;
 
   putLogSnapshot(
