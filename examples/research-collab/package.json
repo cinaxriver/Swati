@@ -1,7 +1,7 @@
 {
   "name": "@swati/example-research-collab",
   "version": "0.1.0",
-  "description": "Research collaboration choreography example",
+  "description": "swati <> research collaboration choreography",
   "type": "module",
   "private": true,
   "scripts": {
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@swati/core": "workspace:*",
-    "@swati/transport-axl": "workspace:*"
+    "@swati/transport-axl": "workspace:*",
+    "@swati/storage-0g": "workspace:*"
   }
 }

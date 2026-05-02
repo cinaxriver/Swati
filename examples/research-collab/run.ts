@@ -20,8 +20,8 @@ const idExecutor = await generateIdentity("executor");
 
 const resolver = new StaticResolver({
   researcher: { pubkey: pubkeyToHex(idResearcher.pubkey), transportId: "researcher" },
-  critic:     { pubkey: pubkeyToHex(idCritic.pubkey),     transportId: "critic" },
-  executor:   { pubkey: pubkeyToHex(idExecutor.pubkey),   transportId: "executor" },
+  critic: { pubkey: pubkeyToHex(idCritic.pubkey), transportId: "critic" },
+  executor: { pubkey: pubkeyToHex(idExecutor.pubkey), transportId: "executor" },
 });
 
 const gates = { local: new LocalGate({ timeoutMs: 30_000, retries: 1 }) };
@@ -53,9 +53,8 @@ const criticCond = new Conductor({
   logPath: join(LOG_DIR, "logs"),
   llm: new MockLLM({
     responses: [
-      // review
       "APPROVE: The proposal is specific, uses established methodology, and has clear measurable outcomes.",
-      // choose() prompt → must return one of ["approve","revise"]
+
       "approve",
     ],
   }),
@@ -95,4 +94,14 @@ if (researcherResult.ok) {
 } else {
   console.error("FAILED:", researcherResult.error);
   process.exit(1);
+}
+
+console.log("\n── LOG VERIFICATION ────────────────────────────────────────────────");
+for (const [roleName, cond] of [
+  ["researcher", researcherCond],
+  ["critic", criticCond],
+  ["executor", executorCond],
+] as const) {
+  const v = await cond.verifyLog();
+  console.log(`  ${roleName}: ${v.ok ? "✔ chain intact" : "✖ " + v.error?.message}`);
 }
