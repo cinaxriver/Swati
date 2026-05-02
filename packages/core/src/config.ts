@@ -3,6 +3,7 @@ import type { IdentityResolver } from "./interfaces/resolver.js";
 import type { Storage } from "./interfaces/storage.js";
 import type { Transport } from "./interfaces/transport.js";
 import type { LLMClient } from "./interfaces/llm.js";
+import type { ChoreographyDef } from "./dsl.js";
 
 export interface SwatiConfig {
   transport: Transport;
@@ -10,6 +11,7 @@ export interface SwatiConfig {
   storage: Storage;
   gates: Record<string, GateProvider>;
   llm: LLMClient;
+  choreographies?: Record<string, ChoreographyDef>;
 }
 
 export function defineConfig(cfg: SwatiConfig): SwatiConfig {

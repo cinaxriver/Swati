@@ -35,7 +35,14 @@ export { defineConfig } from "./config.js";
 export type { SwatiConfig } from "./config.js";
 
 export { SwatiRuntime, createRuntime } from "./runtime.js";
-export type { RuntimeConfig } from "./runtime.js";
+export type {
+  RuntimeConfig,
+  RunStartEvent,
+  RunEndEvent,
+  RunErrorEvent,
+  ActBeforeEvent,
+  ActAfterEvent,
+} from "./runtime.js";
 
 export { ok, err } from "./types.js";
 export type {
