@@ -1,6 +1,6 @@
 # Swati
 
-> Write the protocol once. Every agent runs its own part — automatically.
+> *write the protocol(choreography) once. every agent runs its own part*
 
 Most multi-agent AI systems are held together with shared state, manual retries, and hope. Swati takes a different approach: you define the entire conversation as a single **choreography**, and each agent's behavior is derived from that. No duplicated logic, no silent deadlocks, no out-of-sync participants.
 
