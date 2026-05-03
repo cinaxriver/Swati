@@ -316,8 +316,10 @@ async function runDaemon(
   });
 }
 
-function toNetwork(n?: string): "mainnet" | "sepolia" {
-  return n === "mainnet" ? "mainnet" : "sepolia";
+function toNetwork(n?: string): "mainnet" | "sepolia" | number {
+  if (n === "mainnet") return "mainnet";
+  if (n === "0g-testnet" || n === "16602") return 16602;
+  return "sepolia";
 }
 
 async function fetchText(uri: string): Promise<string> {

@@ -1,7 +1,8 @@
 import { ui } from "../ui.js";
 
-function parseNetwork(n?: string): "mainnet" | "sepolia" {
+function parseNetwork(n?: string): "mainnet" | "sepolia" | number {
   if (n === "mainnet" || n === "sepolia") return n;
+  if (n === "0g-testnet" || n === "16602") return 16602;
   return "mainnet";
 }
 

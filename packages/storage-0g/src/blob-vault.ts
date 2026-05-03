@@ -91,6 +91,9 @@ export class BlobVault implements Storage {
     _role: RoleName,
     jsonl: string,
   ): Promise<Result<{ uri: string }>> {
+    if (!jsonl || jsonl.trim().length === 0) {
+      return ok({ uri: "0g://empty" });
+    }
     try {
       const bytes = new TextEncoder().encode(jsonl);
       const hash = await this.commit(bytes);

@@ -11,12 +11,20 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { mainnet, sepolia } from "viem/chains";
+import { defineChain } from "viem";
 import { SWATI_REGISTRY_ABI, REGISTRY_ADDRESSES } from "./abi.js";
 import { manifestIdToBytes32, pubkeyToHash } from "./choreo-id.js";
 import type { Manifest } from "@swati/core";
 
+export const zeroGTestnet = defineChain({
+  id: 16602,
+  name: "0G Newton Testnet",
+  nativeCurrency: { name: "0G", symbol: "A0GI", decimals: 18 },
+  rpcUrls: { default: { http: ["https://evmrpc-testnet.0g.ai"] } },
+});
+
 export interface RegistryConfig {
-  network?: "mainnet" | "sepolia";
+  network?: "mainnet" | "sepolia" | number;
   rpcUrl?: string;
 
   walletPrivateKey?: string;
@@ -110,23 +118,44 @@ export class OnchainRegistry {
   private readonly walletClient: ReturnType<typeof createWalletClient> | null;
   private readonly account: Account | null;
   private readonly contractAddress: Address;
-  private readonly network: "mainnet" | "sepolia";
+  private readonly network: "mainnet" | "sepolia" | number;
   private readonly chain: Chain;
 
   constructor(cfg: RegistryConfig = {}) {
     this.network = cfg.network ?? "mainnet";
-    const chain = this.network === "mainnet" ? mainnet : sepolia;
-    this.chain = chain;
+
+    if (this.network === "mainnet") {
+      this.chain = mainnet;
+    } else if (this.network === "sepolia") {
+      this.chain = sepolia;
+    } else if (this.network === 16602) {
+      this.chain = zeroGTestnet;
+    } else {
+      this.chain = defineChain({
+        id: this.network as number,
+        name: `Chain-${this.network}`,
+        nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+        rpcUrls: { default: { http: [cfg.rpcUrl ?? ""] } },
+      });
+    }
+
     const defaultRpc =
-      this.network === "mainnet" ? "https://eth.llamarpc.com" : "https://rpc.sepolia.org";
+      this.network === "mainnet"
+        ? "https://eth.llamarpc.com"
+        : this.network === "sepolia"
+          ? "https://rpc.sepolia.org"
+          : this.network === 16602
+            ? "https://evmrpc-testnet.0g.ai"
+            : "";
     const rpcUrl = cfg.rpcUrl ?? process.env["ETH_RPC_URL"] ?? defaultRpc;
 
+    const networkKey = typeof this.network === "string" ? this.network : "sepolia";
     this.contractAddress =
       cfg.contractAddress ??
-      REGISTRY_ADDRESSES[this.network] ??
+      REGISTRY_ADDRESSES[networkKey] ??
       "0x0000000000000000000000000000000000000000";
 
-    this.publicClient = createPublicClient({ chain, transport: http(rpcUrl) });
+    this.publicClient = createPublicClient({ chain: this.chain, transport: http(rpcUrl) });
 
     if (cfg.walletPrivateKey) {
       const rawKey = cfg.walletPrivateKey.startsWith("0x")
@@ -135,7 +164,7 @@ export class OnchainRegistry {
       this.account = privateKeyToAccount(rawKey as `0x${string}`);
       this.walletClient = createWalletClient({
         account: this.account,
-        chain,
+        chain: this.chain,
         transport: http(rpcUrl),
       });
     } else {

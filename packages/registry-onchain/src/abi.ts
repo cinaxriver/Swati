@@ -295,6 +295,6 @@ export const SWATI_REGISTRY_ABI = [
 ] as const;
 
 export const REGISTRY_ADDRESSES: Record<string, `0x${string}`> = {
-  sepolia: "0x0000000000000000000000000000000000000000",
-  mainnet: "0x0000000000000000000000000000000000000000",
+  sepolia: "0x1732370b7a58408c9b5afeab0089857bc220fe9a",
+  mainnet: "0x1732370b7a58408c9b5afeab0089857bc220fe9a",
 };

@@ -70,8 +70,14 @@ export async function runPublish(opts: PublishOptions): Promise<void> {
     try {
       const { OnchainRegistry, manifestIdToBytes32 } = await import("@swati/registry-onchain");
 
-      const network =
-        opts.network === "mainnet" || opts.network === "sepolia" ? opts.network : "sepolia";
+      const network: "mainnet" | "sepolia" | number =
+        opts.network === "mainnet"
+          ? "mainnet"
+          : opts.network === "sepolia"
+            ? "sepolia"
+            : opts.network === "0g-testnet" || opts.network === "16602"
+              ? 16602
+              : "sepolia";
 
       const registry = new OnchainRegistry({
         network,
