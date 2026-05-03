@@ -567,13 +567,12 @@ export class Conductor {
         }
 
         const sigHex = envelope["sig"] as string | undefined;
-        if (sigHex) {
-          const resolved = await this.cfg.resolver.resolve(senderRole);
-          if (resolved.ok) {
-            const { sig: _s, ...body } = envelope;
-            const valid = await verify(resolved.value.pubkey, hexToPubkey(sigHex), body);
-            if (!valid) break;
-          }
+        const resolved = await this.cfg.resolver.resolve(senderRole);
+        if (resolved.ok) {
+          if (!sigHex) break;
+          const { sig: _s, ...body } = envelope;
+          const valid = await verify(resolved.value.pubkey, hexToPubkey(sigHex), body);
+          if (!valid) break;
         }
         const key = `send:${String(envelope["from"])}:${String(envelope["to"])}`;
         const pending = this.pendingOps.get(key);
@@ -605,13 +604,12 @@ export class Conductor {
         }
 
         const chooseSigHex = envelope["sig"] as string | undefined;
-        if (chooseSigHex) {
-          const resolved = await this.cfg.resolver.resolve(chooserRole);
-          if (resolved.ok) {
-            const { sig: _s, ...body } = envelope;
-            const valid = await verify(resolved.value.pubkey, hexToPubkey(chooseSigHex), body);
-            if (!valid) break;
-          }
+        const chooseResolved = await this.cfg.resolver.resolve(chooserRole);
+        if (chooseResolved.ok) {
+          if (!chooseSigHex) break;
+          const { sig: _s, ...body } = envelope;
+          const valid = await verify(chooseResolved.value.pubkey, hexToPubkey(chooseSigHex), body);
+          if (!valid) break;
         }
         const key = `choose:${chooserRole}`;
         const pending = this.pendingOps.get(key);

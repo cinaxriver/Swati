@@ -65,7 +65,7 @@ export async function runRegistryRegister(opts: RegistryRegisterOptions): Promis
   console.log();
   ui.info("Next: register role identities with:");
   ui.dim(
-    `  swati registry register-role --choreo-id ${result.choreoId} --role <role> --pubkey <hex> --wallet-key <hex>`,
+    `  swati registry register-role --choreo-id ${result.choreoId} --role <role> --pubkey <hex> --identity-locator <uri> --wallet-key <hex>`,
   );
 }
 
@@ -74,6 +74,7 @@ export interface RegistryRegisterRoleOptions {
   role: string;
   pubkey: string;
   ensName?: string;
+  identityLocator?: string;
   axlPeerId?: string;
   walletKey: string;
   network?: string;
@@ -97,8 +98,9 @@ export async function runRegistryRegisterRole(opts: RegistryRegisterRoleOptions)
 
   let result: Awaited<ReturnType<typeof registry.registerRole>>;
   try {
-    const roleOpts: { ensName?: string; axlPeerId?: string } = {};
+    const roleOpts: { ensName?: string; identityLocator?: string; axlPeerId?: string } = {};
     if (opts.ensName) roleOpts.ensName = opts.ensName;
+    if (opts.identityLocator) roleOpts.identityLocator = opts.identityLocator;
     if (opts.axlPeerId) roleOpts.axlPeerId = opts.axlPeerId;
     result = await registry.registerRole(
       opts.choreoId as `0x${string}`,
@@ -265,6 +267,92 @@ export async function runRegistryLookup(opts: RegistryLookupOptions): Promise<vo
     }
   } else {
     ui.dim("  No execution logs anchored yet.");
+  }
+}
+
+export interface RegistryGrantRoleOptions {
+  choreoId: string;
+  role: string;
+  grantee: string;
+  walletKey: string;
+  network?: string;
+  rpcUrl?: string;
+  contractAddress?: string;
+  json?: boolean;
+}
+
+export async function runRegistryGrantRole(opts: RegistryGrantRoleOptions): Promise<void> {
+  const { OnchainRegistry } = await import("@swati/registry-onchain");
+
+  const registry = new OnchainRegistry({
+    network: parseNetwork(opts.network),
+    walletPrivateKey: opts.walletKey,
+    ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
+  });
+
+  const spinner = ui.spinner(`Granting role "${opts.role}" to ${opts.grantee}…`);
+  spinner.start();
+
+  try {
+    const result = await registry.grantRole(
+      opts.choreoId as `0x${string}`,
+      opts.role,
+      opts.grantee as `0x${string}`,
+    );
+    spinner.succeed(`Granted — tx: ${result.txHash}`);
+    if (opts.json) ui.json(result);
+    else {
+      ui.dim(`  choreoId: ${opts.choreoId}`);
+      ui.dim(`  role:     ${opts.role}`);
+      ui.dim(`  grantee:  ${opts.grantee}`);
+      ui.info(
+        `Grantee can now run: swati join-role ${opts.choreoId} --role ${opts.role} --wallet-key <their-key>`,
+      );
+    }
+  } catch (cause) {
+    spinner.fail("Grant failed");
+    ui.error(String(cause));
+    process.exit(1);
+  }
+}
+
+export interface RegistrySetOpenRegistrationOptions {
+  choreoId: string;
+  walletKey: string;
+  open?: boolean;
+  network?: string;
+  rpcUrl?: string;
+  contractAddress?: string;
+  json?: boolean;
+}
+
+export async function runRegistrySetOpenRegistration(
+  opts: RegistrySetOpenRegistrationOptions,
+): Promise<void> {
+  const { OnchainRegistry } = await import("@swati/registry-onchain");
+
+  const registry = new OnchainRegistry({
+    network: parseNetwork(opts.network),
+    walletPrivateKey: opts.walletKey,
+    ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
+  });
+
+  const open = opts.open ?? false;
+  const label = open ? "open (anyone can join)" : "closed (grant required)";
+
+  const spinner = ui.spinner(`Setting registration to ${label}…`);
+  spinner.start();
+
+  try {
+    const result = await registry.setOpenRegistration(opts.choreoId as `0x${string}`, open);
+    spinner.succeed(`Registration set to ${label} — tx: ${result.txHash}`);
+    if (opts.json) ui.json(result);
+  } catch (cause) {
+    spinner.fail("Failed");
+    ui.error(String(cause));
+    process.exit(1);
   }
 }
 

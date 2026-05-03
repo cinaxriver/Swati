@@ -1,6 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { resolve, join } from "node:path";
-import { existsSync, readFileSync, watch as fsWatch } from "node:fs";
+import { existsSync, readdirSync, readFileSync, watch as fsWatch } from "node:fs";
 import { homedir } from "node:os";
 import chalk from "chalk";
 import { ui } from "../ui.js";
@@ -32,13 +32,35 @@ export async function runWatch(opts: WatchOptions): Promise<void> {
   ui.info(`Watching roles: ${rolesToWatch.join(", ")} — press Ctrl+C to stop.\n`);
 
   for (const role of rolesToWatch) {
-    const logPath = join(logDir, `${choreo.name}-${role}.jsonl`);
-    if (!existsSync(logPath)) {
-      ui.warn(`Log not found for role "${role}" — will tail when created: ${logPath}`);
+    const prefix = `${choreo.name}-${role}-`;
+    const existing = existsSync(logDir)
+      ? readdirSync(logDir)
+          .filter((f) => f.startsWith(prefix) && f.endsWith(".jsonl"))
+          .map((f) => join(logDir, f))
+      : [];
+
+    if (existing.length === 0) {
+      ui.warn(`No log files found for role "${role}" — will tail when created in: ${logDir}`);
     } else {
-      ui.ok(`Tailing: ${logPath}`);
+      for (const p of existing) ui.ok(`Tailing: ${p}`);
     }
-    startTail(logPath, role);
+
+    for (const p of existing) startTail(p, role);
+
+    if (existsSync(logDir)) {
+      try {
+        fsWatch(logDir, (_, filename) => {
+          if (filename && filename.startsWith(prefix) && filename.endsWith(".jsonl")) {
+            const newPath = join(logDir, filename);
+            if (!existing.includes(newPath)) {
+              existing.push(newPath);
+              ui.ok(`New run log: ${newPath}`);
+              startTail(newPath, role);
+            }
+          }
+        });
+      } catch {}
+    }
   }
 
   await new Promise<void>((res) => {

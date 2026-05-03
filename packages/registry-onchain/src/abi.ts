@@ -21,6 +21,37 @@ export const SWATI_REGISTRY_ABI = [
   },
   {
     type: "event",
+    name: "RoleClaimed",
+    inputs: [
+      { name: "choreoId", type: "bytes32", indexed: true },
+      { name: "role", type: "string", indexed: false },
+      { name: "claimedBy", type: "address", indexed: true },
+      { name: "pubkeyHex", type: "string", indexed: false },
+      { name: "axlPeerId", type: "string", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "RoleGranted",
+    inputs: [
+      { name: "choreoId", type: "bytes32", indexed: true },
+      { name: "role", type: "string", indexed: false },
+      { name: "grantee", type: "address", indexed: true },
+      { name: "grantedBy", type: "address", indexed: true },
+    ],
+  },
+  {
+    type: "event",
+    name: "AxlPeerIdUpdated",
+    inputs: [
+      { name: "choreoId", type: "bytes32", indexed: true },
+      { name: "role", type: "string", indexed: false },
+      { name: "updatedBy", type: "address", indexed: true },
+      { name: "newAxlPeerId", type: "string", indexed: false },
+    ],
+  },
+  {
+    type: "event",
     name: "InvokeLinked",
     inputs: [
       { name: "parentId", type: "bytes32", indexed: true },
@@ -67,6 +98,50 @@ export const SWATI_REGISTRY_ABI = [
   },
   {
     type: "function",
+    name: "setOpenRegistration",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "open", type: "bool" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "grantRole",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "role", type: "string" },
+      { name: "grantee", type: "address" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "claimRole",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "role", type: "string" },
+      { name: "pubkeyHex", type: "string" },
+      { name: "axlPeerId", type: "string" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "updateAxlPeerId",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "role", type: "string" },
+      { name: "newAxlPeerId", type: "string" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
     name: "linkInvoke",
     stateMutability: "nonpayable",
     inputs: [
@@ -89,12 +164,41 @@ export const SWATI_REGISTRY_ABI = [
 
   {
     type: "function",
+    name: "openRegistration",
+    stateMutability: "view",
+    inputs: [{ name: "choreoId", type: "bytes32" }],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "roleGrants",
+    stateMutability: "view",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "role", type: "string" },
+      { name: "grantee", type: "address" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
     name: "verifyRole",
     stateMutability: "view",
     inputs: [
       { name: "choreoId", type: "bytes32" },
       { name: "role", type: "string" },
       { name: "pubkeyHash", type: "bytes32" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "verifyRoleByHex",
+    stateMutability: "view",
+    inputs: [
+      { name: "choreoId", type: "bytes32" },
+      { name: "role", type: "string" },
+      { name: "pubkeyHex", type: "string" },
     ],
     outputs: [{ name: "", type: "bool" }],
   },
@@ -180,8 +284,10 @@ export const SWATI_REGISTRY_ABI = [
     ],
     outputs: [
       { name: "pubkeyHash", type: "bytes32" },
+      { name: "pubkeyHex", type: "string" },
       { name: "ensName", type: "string" },
       { name: "axlPeerId", type: "string" },
+      { name: "claimedBy", type: "address" },
       { name: "registeredAt", type: "uint64" },
       { name: "exists", type: "bool" },
     ],

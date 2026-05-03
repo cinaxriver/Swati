@@ -111,8 +111,8 @@ export class WireChannel implements Transport {
     return this.link.awaitReady();
   }
 
-  async awaitPeers(minCount: number): Promise<void> {
-    return this.link.awaitPeers(minCount);
+  async awaitPeers(minCount: number, opts?: Parameters<NodeLink["awaitPeers"]>[1]): Promise<void> {
+    return this.link.awaitPeers(minCount, opts);
   }
 
   private launchEventLoop(): void {
@@ -120,8 +120,9 @@ export class WireChannel implements Transport {
       while (!this.halted) {
         try {
           const packet = await this.link.poll();
-          if (packet?.sourcePeer) {
-            this.inboundBuffer.push({ from: packet.sourcePeer, bytes: packet.data });
+
+          if (packet?.data && packet.data.byteLength > 0) {
+            this.inboundBuffer.push({ from: packet.sourcePeer ?? "", bytes: packet.data });
             this.drainTrigger?.();
             this.drainTrigger = null;
           }

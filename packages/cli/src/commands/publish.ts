@@ -10,12 +10,18 @@ import type { ChoreographyDef } from "@swati/core";
 export interface PublishOptions {
   score: string;
   config?: string;
-  mint?: boolean;
+
+  walletKey?: string;
+
+  open?: boolean;
+  network?: string;
+  rpcUrl?: string;
+  contractAddress?: string;
   json?: boolean;
 }
 
 export async function runPublish(opts: PublishOptions): Promise<void> {
-  const spinner = ui.spinner("Publishing choreography...");
+  const spinner = ui.spinner("Publishing choreography…");
   spinner.start();
 
   let choreo: ChoreographyDef;
@@ -31,7 +37,7 @@ export async function runPublish(opts: PublishOptions): Promise<void> {
 
   const cfg = await loadConfig(opts.config);
 
-  spinner.text = "Uploading source...";
+  spinner.text = "Uploading source…";
   const scorePath = resolve(opts.score);
   const sourceBytes = new Uint8Array(readFileSync(scorePath));
   const sourceHash = "sha256:" + createHash("sha256").update(sourceBytes).digest("hex");
@@ -43,38 +49,101 @@ export async function runPublish(opts: PublishOptions): Promise<void> {
     process.exit(1);
   }
 
-  spinner.text = "Publishing manifest...";
+  spinner.text = "Publishing manifest…";
   const manifest = deriveManifest(choreo, {
     sourceHash,
     sourceUri: sourceResult.value.uri,
   });
 
-  const result = await cfg.storage.putManifest(manifest);
-  if (!result.ok) {
+  const manifestResult = await cfg.storage.putManifest(manifest);
+  if (!manifestResult.ok) {
     spinner.fail("Failed to upload manifest");
-    ui.error(result.error.message);
+    ui.error(manifestResult.error.message);
     process.exit(1);
   }
 
-  spinner.succeed(`Published: ${manifest.id}`);
-  ui.dim(`  Manifest URI: ${result.value.uri}`);
-  ui.dim(`  Source URI:   ${sourceResult.value.uri}`);
-  ui.dim(`  Source hash:  ${sourceHash}`);
-  ui.dim(`  Roles:        ${manifest.roles.join(", ")}`);
-  ui.info(`Run without source: swati run --id ${result.value.uri} --role <role>`);
+  let choreoId: string | undefined;
 
-  if (opts.mint) {
-    ui.info(
-      "iNFT minting — use `swati mint <uri>` after setting ZEROG_PRIVATE_KEY and contract address.",
-    );
+  if (opts.walletKey) {
+    spinner.text = "Registering on-chain…";
+
+    try {
+      const { OnchainRegistry, manifestIdToBytes32 } = await import("@swati/registry-onchain");
+
+      const network =
+        opts.network === "mainnet" || opts.network === "sepolia" ? opts.network : "sepolia";
+
+      const registry = new OnchainRegistry({
+        network,
+        walletPrivateKey: opts.walletKey,
+        ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
+        ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
+      });
+
+      const regResult = await registry.registerChoreography(manifest, {
+        sourceUri: sourceResult.value.uri,
+        manifestUri: manifestResult.value.uri,
+      });
+
+      choreoId = regResult.choreoId;
+      spinner.text = `Registered on-chain (${choreoId.slice(0, 14)}…)`;
+
+      if (opts.open) {
+        await (registry as any).setOpenRegistration(regResult.choreoId, true);
+        spinner.text = "Open registration enabled";
+      }
+
+      spinner.succeed("Published + registered on-chain");
+    } catch (cause) {
+      spinner.warn(
+        `Off-chain publish succeeded but on-chain registration failed: ${String(cause)}`,
+      );
+      spinner.warn(
+        "Re-run: swati publish --score … --wallet-key $KEY  (or use `swati registry register`)",
+      );
+    }
+  } else {
+    spinner.succeed("Published");
   }
 
   if (opts.json) {
     ui.json({
       manifest,
-      manifestUri: result.value.uri,
+      manifestUri: manifestResult.value.uri,
       sourceUri: sourceResult.value.uri,
       sourceHash,
+      choreoId,
     });
+    return;
+  }
+
+  ui.header(`Choreography: ${choreo.name}`);
+  ui.dim(`  Roles:        ${manifest.roles.join(", ")}`);
+  ui.dim(`  Source:       ${sourceResult.value.uri}`);
+  ui.dim(`  Manifest URI: ${manifestResult.value.uri}`);
+  if (choreoId) {
+    ui.dim(`  choreoId:     ${choreoId}`);
+    console.log();
+    ui.ok("Share this choreoId with participants:");
+    ui.info(`  ${choreoId}`);
+    console.log();
+    ui.dim("Participants run:");
+    for (const role of manifest.roles) {
+      ui.dim(`  swati join ${choreoId} --role ${role}`);
+    }
+    if (!opts.open) {
+      console.log();
+      ui.warn("Registration is CLOSED. Grant access with:");
+      ui.dim(
+        `  swati registry grant-role --choreo-id ${choreoId} --role <role> --grantee <wallet> --wallet-key $KEY`,
+      );
+      ui.dim("  Or open it: swati publish … --open");
+    }
+  } else {
+    console.log();
+    ui.info("To register on-chain (enables automatic discovery):");
+    ui.dim(`  swati publish --score ${opts.score} --wallet-key $YOUR_WALLET_KEY --open`);
+    ui.info("Or run locally:");
+    ui.dim(`  swati run --role <role> --id ${manifestResult.value.uri}`);
   }
 }

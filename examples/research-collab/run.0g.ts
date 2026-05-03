@@ -6,9 +6,7 @@ import { generateIdentity, pubkeyToHex } from "@swati/core";
 import { BlobVault } from "@swati/storage-0g";
 import score from "./score.choreo.js";
 
-const PRIVATE_KEY =
-  process.env["ZEROG_PRIVATE_KEY"] ??
-  "PKX";
+const PRIVATE_KEY = process.env["ZEROG_PRIVATE_KEY"] ?? "PKX";
 
 const storage = new BlobVault({ signingKey: PRIVATE_KEY });
 

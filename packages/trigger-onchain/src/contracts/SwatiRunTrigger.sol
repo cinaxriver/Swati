@@ -2,93 +2,99 @@
 pragma solidity ^0.8.24;
 
 contract SwatiRunTrigger {
-  struct RunRecord {
-    bytes32 choreoId;
-    bytes32 inputHash;
-    address requester;
-    uint64 requestedAt;
-    bool exists;
-  }
 
-  struct ResultRecord {
-    bool success;
-    bytes32 resultHash;
-    uint64 reportedAt;
-    bool exists;
-  }
+struct RunRecord {
+        bytes32 choreoId;
+        bytes32 inputHash;   
+        address requester;
+        uint64  requestedAt;
+        bool    exists;
+    }
 
-  mapping(bytes32 => RunRecord) public runs;
+    struct ResultRecord {
+        bool    success;
+        bytes32 resultHash;  
+        uint64  reportedAt;
+        bool    exists;
+    }
 
-  mapping(bytes32 => mapping(string => ResultRecord)) public results;
+mapping(bytes32 => RunRecord) public runs;
 
-  mapping(bytes32 => string[]) private _reportedRoles;
+mapping(bytes32 => mapping(string => ResultRecord)) public results;
 
-  event RunRequested(
-    bytes32 indexed runKey,
-    bytes32 indexed choreoId,
-    bytes input,
-    address indexed requester
-  );
+mapping(bytes32 => string[]) private _reportedRoles;
 
-  event RunCompleted(
-    bytes32 indexed runKey,
-    string role,
-    bool success,
-    bytes result,
-    address indexed reporter
-  );
+event RunRequested(
+        bytes32 indexed runKey,
+        bytes32 indexed choreoId,
+        bytes   input,
+        address indexed requester
+    );
 
-  error RunNotFound(bytes32 runKey);
-  error ResultAlreadyReported(bytes32 runKey, string role);
-  error EmptyInput();
+event RunCompleted(
+        bytes32 indexed runKey,
+        string  role,
+        bool    success,
+        bytes   result,
+        address indexed reporter
+    );
 
-  function requestRun(bytes32 choreoId, bytes calldata input) external returns (bytes32 runKey) {
-    if (input.length == 0) revert EmptyInput();
+error RunNotFound(bytes32 runKey);
+    error ResultAlreadyReported(bytes32 runKey, string role);
+    error EmptyInput();
 
-    runKey = keccak256(abi.encodePacked(choreoId, block.timestamp, msg.sender, input));
+function requestRun(
+        bytes32 choreoId,
+        bytes calldata input
+    ) external returns (bytes32 runKey) {
+        if (input.length == 0) revert EmptyInput();
 
-    runs[runKey] = RunRecord({
-      choreoId: choreoId,
-      inputHash: keccak256(input),
-      requester: msg.sender,
-      requestedAt: uint64(block.timestamp),
-      exists: true
-    });
+        runKey = keccak256(
+            abi.encodePacked(choreoId, block.timestamp, msg.sender, input)
+        );
 
-    emit RunRequested(runKey, choreoId, input, msg.sender);
-  }
+        runs[runKey] = RunRecord({
+            choreoId:    choreoId,
+            inputHash:   keccak256(input),
+            requester:   msg.sender,
+            requestedAt: uint64(block.timestamp),
+            exists:      true
+        });
 
-  function reportResult(
-    bytes32 runKey,
-    string calldata role,
-    bool success,
-    bytes calldata result
-  ) external {
-    if (!runs[runKey].exists) revert RunNotFound(runKey);
-    if (results[runKey][role].exists) revert ResultAlreadyReported(runKey, role);
+        emit RunRequested(runKey, choreoId, input, msg.sender);
+    }
 
-    results[runKey][role] = ResultRecord({
-      success: success,
-      resultHash: keccak256(result),
-      reportedAt: uint64(block.timestamp),
-      exists: true
-    });
+function reportResult(
+        bytes32 runKey,
+        string calldata role,
+        bool success,
+        bytes calldata result
+    ) external {
+        if (!runs[runKey].exists) revert RunNotFound(runKey);
+        if (results[runKey][role].exists) revert ResultAlreadyReported(runKey, role);
 
-    _reportedRoles[runKey].push(role);
+        results[runKey][role] = ResultRecord({
+            success:    success,
+            resultHash: keccak256(result),
+            reportedAt: uint64(block.timestamp),
+            exists:     true
+        });
 
-    emit RunCompleted(runKey, role, success, result, msg.sender);
-  }
+        _reportedRoles[runKey].push(role);
 
-  function getReportedRoles(bytes32 runKey) external view returns (string[] memory) {
-    return _reportedRoles[runKey];
-  }
+        emit RunCompleted(runKey, role, success, result, msg.sender);
+    }
 
-  function verifyResult(
-    bytes32 runKey,
-    string calldata role,
-    bytes calldata result
-  ) external view returns (bool) {
-    ResultRecord storage rec = results[runKey][role];
-    return rec.exists && rec.resultHash == keccak256(result);
-  }
+function getReportedRoles(bytes32 runKey) external view returns (string[] memory) {
+        return _reportedRoles[runKey];
+    }
+
+function verifyResult(
+        bytes32 runKey,
+        string calldata role,
+        bytes calldata result
+    ) external view returns (bool) {
+        ResultRecord storage rec = results[runKey][role];
+        return rec.exists && rec.resultHash == keccak256(result);
+    }
 }

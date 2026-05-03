@@ -46,9 +46,23 @@ export interface ChoreographyInfo {
 
 export interface RoleInfo {
   pubkeyHash: `0x${string}`;
+
+  pubkeyHex: string;
+
   ensName: string;
+
+  identityLocator?: string;
   axlPeerId: string;
+  claimedBy: Address;
   registeredAt: Date;
+}
+
+export interface ClaimRoleResult {
+  txHash: Hash;
+}
+
+export interface GrantRoleResult {
+  txHash: Hash;
 }
 
 export interface LogAnchorResult {
@@ -60,6 +74,35 @@ export interface LogAnchorInfo {
   logUri: string;
   anchoredBy: Address;
   anchoredAt: Date;
+}
+
+export interface RegisterRoleFromTopologyOptions extends RegistryConfig {
+  choreoId: string;
+  role: string;
+  pubkeyHex: string;
+  axlEndpoint: string;
+  ensName?: string;
+  identityLocator?: string;
+}
+
+export interface RegisterRoleFromTopologyResult extends RegisterRoleResult {
+  choreoId: `0x${string}`;
+  axlPeerId: string;
+}
+
+export interface ClaimRoleFromTopologyOptions extends RegistryConfig {
+  choreoId: string;
+  role: string;
+
+  pubkeyHex: string;
+
+  axlEndpoint: string;
+}
+
+export interface ClaimRoleFromTopologyResult {
+  txHash: Hash;
+  choreoId: `0x${string}`;
+  axlPeerId: string;
 }
 
 export class OnchainRegistry {
@@ -130,9 +173,10 @@ export class OnchainRegistry {
     choreoId: `0x${string}`,
     role: string,
     pubkeyHex: string,
-    opts: { ensName?: string; axlPeerId?: string } = {},
+    opts: { ensName?: string; identityLocator?: string; axlPeerId?: string } = {},
   ): Promise<RegisterRoleResult> {
     this.requireWallet();
+    const identityLocator = opts.identityLocator ?? opts.ensName ?? "";
 
     const txHash = await this.walletClient!.writeContract({
       chain: this.chain,
@@ -140,9 +184,74 @@ export class OnchainRegistry {
       address: this.contractAddress,
       abi: SWATI_REGISTRY_ABI,
       functionName: "registerRole",
-      args: [choreoId, role, pubkeyToHash(pubkeyHex), opts.ensName ?? "", opts.axlPeerId ?? ""],
+      args: [choreoId, role, pubkeyToHash(pubkeyHex), identityLocator, opts.axlPeerId ?? ""],
     });
 
+    return { txHash };
+  }
+
+  async setOpenRegistration(choreoId: `0x${string}`, open: boolean): Promise<{ txHash: Hash }> {
+    this.requireWallet();
+    const txHash = await this.walletClient!.writeContract({
+      chain: this.chain,
+      account: this.account!,
+      address: this.contractAddress,
+      abi: SWATI_REGISTRY_ABI,
+      functionName: "setOpenRegistration",
+      args: [choreoId, open],
+    });
+    return { txHash };
+  }
+
+  async grantRole(
+    choreoId: `0x${string}`,
+    role: string,
+    granteeAddress: `0x${string}`,
+  ): Promise<GrantRoleResult> {
+    this.requireWallet();
+    const txHash = await this.walletClient!.writeContract({
+      chain: this.chain,
+      account: this.account!,
+      address: this.contractAddress,
+      abi: SWATI_REGISTRY_ABI,
+      functionName: "grantRole",
+      args: [choreoId, role, granteeAddress],
+    });
+    return { txHash };
+  }
+
+  async claimRole(
+    choreoId: `0x${string}`,
+    role: string,
+    pubkeyHex: string,
+    axlPeerId: string,
+  ): Promise<ClaimRoleResult> {
+    this.requireWallet();
+    const txHash = await this.walletClient!.writeContract({
+      chain: this.chain,
+      account: this.account!,
+      address: this.contractAddress,
+      abi: SWATI_REGISTRY_ABI,
+      functionName: "claimRole",
+      args: [choreoId, role, pubkeyHex, axlPeerId],
+    });
+    return { txHash };
+  }
+
+  async updateAxlPeerId(
+    choreoId: `0x${string}`,
+    role: string,
+    newAxlPeerId: string,
+  ): Promise<{ txHash: Hash }> {
+    this.requireWallet();
+    const txHash = await this.walletClient!.writeContract({
+      chain: this.chain,
+      account: this.account!,
+      address: this.contractAddress,
+      abi: SWATI_REGISTRY_ABI,
+      functionName: "updateAxlPeerId",
+      args: [choreoId, role, newAxlPeerId],
+    });
     return { txHash };
   }
 
@@ -221,22 +330,26 @@ export class OnchainRegistry {
       ? manifestIdToBytes32(manifestIdOrBytes32)
       : (manifestIdOrBytes32 as `0x${string}`);
 
-    const [pubkeyHash, ensName, axlPeerId, registeredAt, exists] =
+    const [pubkeyHash, pubkeyHex, ensName, axlPeerId, claimedBy, registeredAt, exists] =
       (await this.publicClient.readContract({
         address: this.contractAddress,
         abi: SWATI_REGISTRY_ABI,
         functionName: "roleIdentities",
         args: [choreoId, role],
-      })) as [`0x${string}`, string, string, bigint, boolean];
+      })) as [`0x${string}`, string, string, string, Address, bigint, boolean];
 
     if (!exists) return null;
 
-    return {
+    const info: RoleInfo = {
       pubkeyHash,
+      pubkeyHex,
       ensName,
       axlPeerId,
+      claimedBy,
       registeredAt: new Date(Number(registeredAt) * 1000),
     };
+    if (ensName) info.identityLocator = ensName;
+    return info;
   }
 
   async verifyRole(manifestIdOrBytes32: string, role: string, pubkeyHex: string): Promise<boolean> {
@@ -249,6 +362,32 @@ export class OnchainRegistry {
       abi: SWATI_REGISTRY_ABI,
       functionName: "verifyRole",
       args: [choreoId, role, pubkeyToHash(pubkeyHex)],
+    }) as Promise<boolean>;
+  }
+
+  async isGranted(manifestIdOrBytes32: string, role: string, address: Address): Promise<boolean> {
+    const choreoId = manifestIdOrBytes32.startsWith("swati:")
+      ? manifestIdToBytes32(manifestIdOrBytes32)
+      : (manifestIdOrBytes32 as `0x${string}`);
+
+    return this.publicClient.readContract({
+      address: this.contractAddress,
+      abi: SWATI_REGISTRY_ABI,
+      functionName: "roleGrants",
+      args: [choreoId, role, address],
+    }) as Promise<boolean>;
+  }
+
+  async isOpenRegistration(manifestIdOrBytes32: string): Promise<boolean> {
+    const choreoId = manifestIdOrBytes32.startsWith("swati:")
+      ? manifestIdToBytes32(manifestIdOrBytes32)
+      : (manifestIdOrBytes32 as `0x${string}`);
+
+    return this.publicClient.readContract({
+      address: this.contractAddress,
+      abi: SWATI_REGISTRY_ABI,
+      functionName: "openRegistration",
+      args: [choreoId],
     }) as Promise<boolean>;
   }
 
@@ -307,3 +446,68 @@ export class OnchainRegistry {
 
 export { manifestIdToBytes32, bytes32ToHex, pubkeyToHash, verifyPubkeyHash } from "./choreo-id.js";
 export { SWATI_REGISTRY_ABI, REGISTRY_ADDRESSES } from "./abi.js";
+
+function normalizeChoreoId(choreoId: string): `0x${string}` {
+  if (choreoId.startsWith("swati:")) return manifestIdToBytes32(choreoId);
+  return choreoId as `0x${string}`;
+}
+
+function normalizeAxlPeerId(value: string): string {
+  const v = value.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(v)) {
+    throw new Error(`Invalid AXL peer key "${value}" (expected 64-char hex topology key)`);
+  }
+  return v;
+}
+
+export async function getAxlPeerIdFromTopology(endpoint: string): Promise<string> {
+  const url = new URL("/topology", endpoint);
+  const res = await fetch(url, { method: "GET" });
+  if (!res.ok) {
+    throw new Error(`Topology request failed at ${url.toString()} with HTTP ${res.status}`);
+  }
+  const payload = (await res.json()) as { our_public_key?: unknown };
+  if (typeof payload.our_public_key !== "string") {
+    throw new Error(`Topology response at ${url.toString()} has no string "our_public_key"`);
+  }
+  return normalizeAxlPeerId(payload.our_public_key);
+}
+
+export async function registerRoleFromTopology(
+  opts: RegisterRoleFromTopologyOptions,
+): Promise<RegisterRoleFromTopologyResult> {
+  const choreoId = normalizeChoreoId(opts.choreoId);
+  const axlPeerId = await getAxlPeerIdFromTopology(opts.axlEndpoint);
+
+  const registry = new OnchainRegistry({
+    ...(opts.network ? { network: opts.network } : {}),
+    ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
+    ...(opts.walletPrivateKey ? { walletPrivateKey: opts.walletPrivateKey } : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress } : {}),
+  });
+
+  const { txHash } = await registry.registerRole(choreoId, opts.role, opts.pubkeyHex, {
+    ...(opts.ensName ? { ensName: opts.ensName } : {}),
+    ...(opts.identityLocator ? { identityLocator: opts.identityLocator } : {}),
+    axlPeerId,
+  });
+
+  return { txHash, choreoId, axlPeerId };
+}
+
+export async function claimRoleFromTopology(
+  opts: ClaimRoleFromTopologyOptions,
+): Promise<ClaimRoleFromTopologyResult> {
+  const choreoId = normalizeChoreoId(opts.choreoId);
+  const axlPeerId = await getAxlPeerIdFromTopology(opts.axlEndpoint);
+
+  const registry = new OnchainRegistry({
+    ...(opts.network ? { network: opts.network } : {}),
+    ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
+    ...(opts.walletPrivateKey ? { walletPrivateKey: opts.walletPrivateKey } : {}),
+    ...(opts.contractAddress ? { contractAddress: opts.contractAddress } : {}),
+  });
+
+  const { txHash } = await registry.claimRole(choreoId, opts.role, opts.pubkeyHex, axlPeerId);
+  return { txHash, choreoId, axlPeerId };
+}
