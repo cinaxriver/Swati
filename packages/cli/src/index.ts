@@ -79,10 +79,13 @@ program
   .command("publish <score>")
   .description(
     "Publish a choreography.\n" +
-      "  Without --wallet-key: uploads source + manifest to storage only.\n" +
-      "  With    --wallet-key: also registers on SwatiRegistry.sol → prints choreoId.",
+      "  Without a wallet key: uploads source + manifest to storage only.\n" +
+      "  With --wallet-key or SWATI_WALLET_KEY / ZEROG_PRIVATE_KEY: registers on SwatiRegistry.sol → choreoId.",
   )
-  .option("--wallet-key <hex>", "wallet private key for on-chain registration")
+  .option(
+    "--wallet-key <hex>",
+    "EVM key for registry (omit if SWATI_WALLET_KEY or ZEROG_PRIVATE_KEY is set)",
+  )
   .option("--open", "enable open self-registration (anyone can join)")
   .option("--network <net>", "mainnet or sepolia", "sepolia")
   .option("--rpc-url <url>", "custom RPC endpoint")
@@ -111,7 +114,7 @@ program
   .description(
     "Join a choreography role and run as a daemon.\n" +
       "  <target>: 0x<choreoId> (on-chain) or manifest URI (local)\n\n" +
-      "  On-chain mode (--wallet-key required):\n" +
+      "  On-chain mode (wallet: --wallet-key or SWATI_WALLET_KEY / ZEROG_PRIVATE_KEY):\n" +
       "    • fetches source from registry\n" +
       "    • generates identity if none found at ~/.swati/<role>.key.json\n" +
       "    • reads AXL peer ID from /topology\n" +
@@ -121,7 +124,10 @@ program
       "    • fetches manifest, runs once",
   )
   .requiredOption("--role <name>", "role name (e.g. researcher)")
-  .option("--wallet-key <hex>", "wallet private key (on-chain mode)")
+  .option(
+    "--wallet-key <hex>",
+    "EVM key for on-chain (optional if SWATI_WALLET_KEY / ZEROG_PRIVATE_KEY)",
+  )
   .option(
     "--identity-file <path>",
     "identity JSON from `swati keygen` (default: ~/.swati/<role>.key.json)",

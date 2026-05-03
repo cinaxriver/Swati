@@ -1,0 +1,16 @@
+{
+  "name": "@swati/example-ai-courtroom",
+  "version": "0.1.0",
+  "description": "demo",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "run": "tsx run-all.ts"
+  },
+  "dependencies": {
+    "@swati/core": "workspace:*",
+    "@swati/llm-anthropic": "workspace:^",
+    "@swati/transport-axl": "workspace:^",
+    "@swati/storage-0g": "workspace:^"
+  }
+}

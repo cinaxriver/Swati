@@ -1,0 +1,15 @@
+{
+  "_comment": "Replace each axl_pubkey with the actual AXL public key from: curl http://localhost:9002/topology | jq .our_public_key",
+  "prosecutor": {
+    "pubkey": "0",
+    "transportId": "0"
+  },
+  "defender": {
+    "pubkey": "0",
+    "transportId": "0"
+  },
+  "judge": {
+    "pubkey": "0",
+    "transportId": "0"
+  }
+}

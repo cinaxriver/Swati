@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { deriveManifest } from "@swati/core";
+import { resolveSwatiWalletKey } from "../env-wallet.js";
 import { loadConfig } from "../config-loader.js";
 import { ui } from "../ui.js";
 import type { ChoreographyDef } from "@swati/core";
@@ -21,6 +22,7 @@ export interface PublishOptions {
 }
 
 export async function runPublish(opts: PublishOptions): Promise<void> {
+  const walletKey = resolveSwatiWalletKey(opts.walletKey);
   const spinner = ui.spinner("Publishing choreography…");
   spinner.start();
 
@@ -64,11 +66,11 @@ export async function runPublish(opts: PublishOptions): Promise<void> {
 
   let choreoId: string | undefined;
 
-  if (opts.walletKey) {
+  if (walletKey) {
     spinner.text = "Registering on-chain…";
 
     try {
-      const { OnchainRegistry, manifestIdToBytes32 } = await import("@swati/registry-onchain");
+      const { OnchainRegistry } = await import("@swati/registry-onchain");
 
       const network: "mainnet" | "sepolia" | number =
         opts.network === "mainnet"
@@ -81,7 +83,7 @@ export async function runPublish(opts: PublishOptions): Promise<void> {
 
       const registry = new OnchainRegistry({
         network,
-        walletPrivateKey: opts.walletKey,
+        walletPrivateKey: walletKey,
         ...(opts.rpcUrl ? { rpcUrl: opts.rpcUrl } : {}),
         ...(opts.contractAddress ? { contractAddress: opts.contractAddress as `0x${string}` } : {}),
       });
@@ -105,7 +107,7 @@ export async function runPublish(opts: PublishOptions): Promise<void> {
         `Off-chain publish succeeded but on-chain registration failed: ${String(cause)}`,
       );
       spinner.warn(
-        "Re-run: swati publish --score … --wallet-key $KEY  (or use `swati registry register`)",
+        "Re-run with wallet in env (SWATI_WALLET_KEY / ZEROG_PRIVATE_KEY) or `swati registry register`",
       );
     }
   } else {
@@ -148,7 +150,9 @@ export async function runPublish(opts: PublishOptions): Promise<void> {
   } else {
     console.log();
     ui.info("To register on-chain (enables automatic discovery):");
-    ui.dim(`  swati publish --score ${opts.score} --wallet-key $YOUR_WALLET_KEY --open`);
+    ui.dim(
+      `  swati publish ${opts.score} --open   (wallet: SWATI_WALLET_KEY / ZEROG_PRIVATE_KEY in env, no CLI flag)`,
+    );
     ui.info("Or run locally:");
     ui.dim(`  swati run --role <role> --id ${manifestResult.value.uri}`);
   }

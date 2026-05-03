@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Swati — Lifecycle</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --brand:      #D45435;
+    --brand-mid:  #C3492B;
+    --brand-dark: #AD3B1F;
+    --cream:      #EBE6CF;
+    --near-white: #FFFBEB;
+    --dark:       #110a07;
+    --font: 'Source Code Pro', 'Menlo', monospace;
+  }
+  body {
+    background: var(--dark);
+    font-family: var(--font);
+    color: var(--near-white);
+    padding: 60px 80px;
+  }
+  .page-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--brand);
+    margin-bottom: 8px;
+  }
+  .page-subtitle {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--near-white);
+    margin-bottom: 60px;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── STEP ── */
+  .step {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 0;
+    max-width: 1100px;
+    margin-bottom: 0;
+  }
+  .step-header {
+    border: 1px solid rgba(212,84,53,0.4);
+    border-right: none;
+    background: rgba(212,84,53,0.08);
+    padding: 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+  .step-num {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--brand);
+    opacity: 0.8;
+  }
+  .step-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--near-white);
+    line-height: 1.2;
+  }
+  .step-who {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.45;
+    margin-top: 4px;
+  }
+  .step-body {
+    border: 1px solid rgba(235,230,207,0.1);
+    background: rgba(235,230,207,0.02);
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* code block inside steps */
+  .code-snip {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.8;
+    line-height: 1.7;
+    white-space: pre;
+    background: rgba(0,0,0,0.25);
+    padding: 14px 18px;
+    overflow-x: auto;
+  }
+  .c-kw  { color: #e06c75; }
+  .c-fn  { color: #61afef; }
+  .c-str { color: #98c379; }
+  .c-cmt { color: #5c6370; font-style: italic; }
+  .c-op  { color: #abb2bf; }
+  .c-var { color: var(--cream); }
+  .c-hl  { color: #e5c07b; }
+
+  /* flow steps */
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .flow-item {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(235,230,207,0.06);
+    align-items: flex-start;
+  }
+  .flow-item:last-child { border-bottom: none; }
+  .flow-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--brand);
+    opacity: 0.7;
+    padding-top: 1px;
+  }
+  .flow-text {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--near-white);
+    opacity: 0.8;
+    line-height: 1.5;
+  }
+  .flow-text .note {
+    font-size: 11px;
+    color: var(--cream);
+    opacity: 0.45;
+    display: block;
+    margin-top: 2px;
+  }
+  .flow-text .addr {
+    color: var(--cream);
+    opacity: 0.5;
+    font-size: 11px;
+  }
+
+  /* connector between steps */
+  .step-connector {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    padding-left: 140px;
+    color: var(--brand);
+    opacity: 0.4;
+    font-size: 18px;
+    max-width: 1100px;
+  }
+
+  /* result pills */
+  .result-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .result-pill {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 14px;
+  }
+  .result-pill.ok {
+    background: rgba(152,195,121,0.15);
+    border: 1px solid rgba(152,195,121,0.3);
+    color: #98c379;
+  }
+  .result-pill.fail {
+    background: rgba(224,108,117,0.12);
+    border: 1px solid rgba(224,108,117,0.25);
+    color: #e06c75;
+  }
+
+  /* two-col layout inside step body */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .col-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cream);
+    opacity: 0.4;
+    margin-bottom: 10px;
+  }
+</style>
+</head>
+<body>
+  <div class="page-title">Swati Architecture</div>
+  <div class="page-subtitle">Run Lifecycle — Step 0 to 4</div>
+
+  <!-- STEP 0 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">Step 0</div>
+      <div class="step-title">Author writes ONE choreography</div>
+      <div class="step-who">developer</div>
+    </div>
+    <div class="step-body">
+      <div class="code-snip"><span class="c-kw">export default</span> <span class="c-fn">choreography</span><span class="c-op">(</span><span class="c-str">"research-collab"</span><span class="c-op">, {</span>
+  <span class="c-var">roles</span><span class="c-op">: [</span><span class="c-str">"researcher"</span><span class="c-op">,</span> <span class="c-str">"critic"</span><span class="c-op">,</span> <span class="c-str">"executor"</span><span class="c-op">],</span>
+  <span class="c-kw">async</span> <span class="c-fn">flow</span><span class="c-op">(</span><span class="c-var">c</span><span class="c-op">) {</span>
+    <span class="c-kw">const</span> <span class="c-var">proposal</span> <span class="c-op">=</span> <span class="c-kw">await</span> <span class="c-var">c</span><span class="c-op">.</span><span class="c-hl">roles</span><span class="c-op">.</span><span class="c-var">researcher</span><span class="c-op">.</span><span class="c-fn">do</span><span class="c-op">(</span><span class="c-str">"Write a proposal"</span><span class="c-op">);</span>
+    <span class="c-kw">await</span> <span class="c-var">c</span><span class="c-op">.</span><span class="c-hl">send</span><span class="c-op">(</span><span class="c-var">proposal</span><span class="c-op">,</span> <span class="c-str">"researcher"</span><span class="c-op">,</span> <span class="c-str">"critic"</span><span class="c-op">);</span>
+    <span class="c-kw">const</span> <span class="c-var">decision</span> <span class="c-op">=</span> <span class="c-kw">await</span> <span class="c-var">c</span><span class="c-op">.</span><span class="c-hl">choose</span><span class="c-op">(</span><span class="c-str">"critic"</span><span class="c-op">, [</span><span class="c-str">"approve"</span><span class="c-op">,</span><span class="c-str">"revise"</span><span class="c-op">],</span> <span class="c-var">proposal</span><span class="c-op">);</span>
+    <span class="c-kw">if</span> <span class="c-op">(</span><span class="c-var">decision</span> <span class="c-op">===</span> <span class="c-str">"approve"</span><span class="c-op">) {</span>
+      <span class="c-kw">await</span> <span class="c-var">c</span><span class="c-op">.</span><span class="c-hl">gate</span><span class="c-op">(</span><span class="c-str">"executor"</span><span class="c-op">,</span> <span class="c-str">"local"</span><span class="c-op">,</span> <span class="c-kw">async</span> <span class="c-op">() =&gt; { ... });</span>
+    <span class="c-op">}</span>
+  <span class="c-op">}</span>
+<span class="c-op">});</span></div>
+    </div>
+  </div>
+
+  <div class="step-connector">↓</div>
+
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">Step 1</div>
+      <div class="step-title">Publish</div>
+      <div class="step-who">author · swati publish</div>
+    </div>
+    <div class="step-body">
+      <div class="flow-steps">
+        <div class="flow-item">
+          <div class="flow-num">1</div>
+          <div class="flow-text">Read source bytes
+            <span class="note">SHA-256(source) → sourceHash</span>
+          </div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">2</div>
+          <div class="flow-text">Upload source to 0G BlobVault
+            <span class="addr">→ 0g://0x4645…</span>
+          </div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">3</div>
+          <div class="flow-text">Build manifest { name, roles, sourceHash, sourceUri } → upload to 0G
+            <span class="addr">→ 0g://0xa176…</span>
+          </div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">4</div>
+          <div class="flow-text">SwatiRegistry.sol.registerChoreography(manifestHash, name, roles)
+            <span class="addr">→ choreoId: 0xce0d4300… (share with participants)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-connector">↓</div>
+
+  <!-- STEP 2 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">Step 2</div>
+      <div class="step-title">Participants register</div>
+      <div class="step-who">each participant · swati keygen + register-role</div>
+    </div>
+    <div class="step-body">
+      <div class="two-col">
+        <div>
+          <div class="col-label">keygen</div>
+          <div class="code-snip">swati keygen \
+  --name analyst \
+  --out ~/.swati/analyst.key.json
+
+<span class="c-cmt">→ ed25519 private key + public key</span></div>
+        </div>
+        <div>
+          <div class="col-label">register-role</div>
+          <div class="code-snip">swati registry register-role \
+  --choreo-id 0xce0d4300... \
+  --role analyst \
+  --pubkey 49a80c25...
+
+<span class="c-cmt">→ pubkey + AXL peer ID on-chain
+→ any node can verify identity</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-connector">↓</div>
+
+  <!-- STEP 3 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">Step 3</div>
+      <div class="step-title">Run</div>
+      <div class="step-who">each role independently · swati run</div>
+    </div>
+    <div class="step-body">
+      <div class="flow-steps">
+        <div class="flow-item">
+          <div class="flow-num">1</div>
+          <div class="flow-text">Fetch manifest from 0G · verify SHA-256(source) == manifest.sourceHash · load choreography</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">2</div>
+          <div class="flow-text">Load identity (--identity-file or SWATI_PRIVKEY_HEX)</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">3</div>
+          <div class="flow-text">Pre-flight: resolve all roles via on-chain registry</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">4</div>
+          <div class="flow-text">Attestation phase: all roles broadcast signed attest with choreoId hash
+            <span class="note">✓ All match → flow starts &nbsp; ✗ Any mismatch → CHOREO_MISMATCH abort</span>
+          </div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">5</div>
+          <div class="flow-text">Flow execution (EPP): each Conductor walks the same flow(), executes only its own steps
+            <span class="note">After each act: AppendLog.append() → signed, hash-chained entry</span>
+          </div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">6</div>
+          <div class="flow-text">Run complete: snapshotLog() → BlobVault.putLogSnapshot()
+            <span class="addr">→ 0g://0x9b46… · swati registry anchor-log → on-chain proof</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-connector">↓</div>
+
+  <!-- STEP 4 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num">Step 4</div>
+      <div class="step-title">Verify</div>
+      <div class="step-who">anyone · swati verify</div>
+    </div>
+    <div class="step-body">
+      <div class="code-snip" style="margin-bottom:16px;">swati verify --uri 0g://0x9b46...</div>
+      <div class="flow-steps">
+        <div class="flow-item">
+          <div class="flow-num">1</div>
+          <div class="flow-text">Fetch JSONL log from 0G</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">2</div>
+          <div class="flow-text">For each entry: verify ed25519(sig, body, pubkey) · verify hash(prevEntry) == entry.prevId</div>
+        </div>
+        <div class="flow-item">
+          <div class="flow-num">3</div>
+          <div class="flow-text">
+            <div class="result-row">
+              <span class="result-pill ok">✓ Log chain verified — all signatures valid</span>
+              <span class="result-pill fail">✗ CHAIN_TAMPERED at act &lt;id&gt;</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:60px;"></div>
+</body>
+</html>

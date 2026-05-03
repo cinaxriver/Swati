@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Swati — Conductor Internals</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --brand:      #D45435;
+    --brand-mid:  #C3492B;
+    --brand-dark: #AD3B1F;
+    --cream:      #EBE6CF;
+    --near-white: #FFFBEB;
+    --dark:       #110a07;
+    --font: 'Source Code Pro', 'Menlo', monospace;
+  }
+  body {
+    background: var(--dark);
+    font-family: var(--font);
+    color: var(--near-white);
+    padding: 60px 80px;
+  }
+  .page-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--brand);
+    margin-bottom: 8px;
+  }
+  .page-subtitle {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--near-white);
+    margin-bottom: 60px;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── PHASES ── */
+  .phases-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 0;
+    align-items: stretch;
+    max-width: 1100px;
+    margin-bottom: 0;
+  }
+  .phase-box {
+    border: 1px solid rgba(235,230,207,0.15);
+    padding: 28px 24px;
+    background: rgba(235,230,207,0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .phase-box.highlight {
+    border-color: rgba(212,84,53,0.5);
+    background: rgba(212,84,53,0.08);
+  }
+  .phase-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--brand);
+    letter-spacing: 0.04em;
+  }
+  .phase-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .phase-item {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.75;
+    line-height: 1.5;
+    padding-left: 14px;
+    position: relative;
+  }
+  .phase-item::before {
+    content: '·';
+    position: absolute;
+    left: 0;
+    color: var(--brand);
+    opacity: 0.6;
+  }
+  .phase-note {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.4;
+    margin-top: auto;
+    line-height: 1.5;
+  }
+  .phase-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    color: var(--brand);
+    opacity: 0.5;
+    font-size: 20px;
+  }
+
+  /* ── PRIMITIVES ── */
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cream);
+    opacity: 0.4;
+    margin: 48px 0 12px;
+  }
+  .primitives-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    max-width: 1100px;
+  }
+  .primitive-card {
+    border: 1px solid rgba(235,230,207,0.12);
+    background: rgba(235,230,207,0.03);
+    padding: 24px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .prim-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #e5c07b;
+  }
+  .prim-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .prim-role {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brand);
+    opacity: 0.8;
+  }
+  .prim-desc {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--near-white);
+    opacity: 0.75;
+    line-height: 1.5;
+  }
+  .prim-sep {
+    height: 1px;
+    background: rgba(235,230,207,0.08);
+  }
+
+  /* ── APPENDLOG ── */
+  .log-box {
+    max-width: 1100px;
+    border: 1px solid rgba(235,230,207,0.1);
+    background: rgba(0,0,0,0.3);
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .log-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--cream);
+    opacity: 0.6;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .log-entry {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.7;
+    line-height: 1.6;
+  }
+  .log-entry .key { color: #e5c07b; }
+  .log-entry .val { color: #98c379; }
+  .log-note {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.35;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+  <div class="page-title">Swati Architecture</div>
+  <div class="page-subtitle">Conductor Internals</div>
+
+  <!-- THREE PHASES -->
+  <div class="section-label">Execution phases</div>
+  <div class="phases-row">
+    <div class="phase-box">
+      <div class="phase-title">01 Attestation</div>
+      <div class="phase-items">
+        <div class="phase-item">Broadcast signed attest to all peers</div>
+        <div class="phase-item">Verify all peers share the same choreoId</div>
+        <div class="phase-item">5 min timeout · 5s retry</div>
+      </div>
+      <div class="phase-note">CHOREO_MISMATCH → abort before any work runs</div>
+    </div>
+    <div class="phase-arrow">→</div>
+    <div class="phase-box highlight">
+      <div class="phase-title">02 Flow Execution (EPP)</div>
+      <div class="phase-items">
+        <div class="phase-item">Walk the choreography flow() function</div>
+        <div class="phase-item">Per step: is this my role?</div>
+        <div class="phase-item">Yes → execute</div>
+        <div class="phase-item">No → wait or skip</div>
+      </div>
+      <div class="phase-note">Endpoint Projection — same file, different behavior per role</div>
+    </div>
+    <div class="phase-arrow">→</div>
+    <div class="phase-box">
+      <div class="phase-title">03 Shutdown &amp; Snapshot</div>
+      <div class="phase-items">
+        <div class="phase-item">snapshotLog()</div>
+        <div class="phase-item">storage.putLogSnapshot()</div>
+        <div class="phase-item">transport.close()</div>
+      </div>
+      <div class="phase-note">Log uploaded to 0G after every run</div>
+    </div>
+  </div>
+
+  <!-- PRIMITIVES -->
+  <div class="section-label">DSL primitives — how each role behaves</div>
+  <div class="primitives-row">
+
+    <div class="primitive-card">
+      <div class="prim-name">send(v, A, B)</div>
+      <div class="prim-section">
+        <div class="prim-role">Role A — sender</div>
+        <div class="prim-desc">Sign message · transport.send() · return sent value</div>
+      </div>
+      <div class="prim-sep"></div>
+      <div class="prim-section">
+        <div class="prim-role">Role B — receiver</div>
+        <div class="prim-desc">Block until recv · verify ed25519 sig · return value</div>
+      </div>
+      <div class="prim-sep"></div>
+      <div class="prim-section">
+        <div class="prim-role">All others</div>
+        <div class="prim-desc">Skip — line is invisible</div>
+      </div>
+    </div>
+
+    <div class="primitive-card">
+      <div class="prim-name">choose(R, opts)</div>
+      <div class="prim-section">
+        <div class="prim-role">Role R — chooser</div>
+        <div class="prim-desc">LLM call with evidence · broadcast result to ALL roles</div>
+      </div>
+      <div class="prim-sep"></div>
+      <div class="prim-section">
+        <div class="prim-role">All others — observers</div>
+        <div class="prim-desc">Await broadcast · branch on received value identically</div>
+      </div>
+      <div class="prim-sep"></div>
+      <div class="prim-section">
+        <div class="prim-role">Guarantee</div>
+        <div class="prim-desc">All roles see the same value — no divergence possible</div>
+      </div>
+    </div>
+
+    <div class="primitive-card">
+      <div class="prim-name">gate(R, p, fn)</div>
+      <div class="prim-section">
+        <div class="prim-role">Role R — gate role</div>
+        <div class="prim-desc">Call Gate Provider · await proof · log proof · broadcast result</div>
+      </div>
+      <div class="prim-sep"></div>
+      <div class="prim-section">
+        <div class="prim-role">All others</div>
+        <div class="prim-desc">Skip / wait — cannot execute without proof</div>
+      </div>
+      <div class="prim-sep"></div>
+      <div class="prim-section">
+        <div class="prim-role">Guarantee</div>
+        <div class="prim-desc">result.ok === true only if proof was issued</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- APPENDLOG -->
+  <div class="section-label">AppendLog — Secure Scuttlebutt-style hash chain</div>
+  <div class="log-box">
+    <div class="log-title">Each log entry</div>
+    <div class="log-entry">
+      <span class="key">id</span>, &nbsp;
+      <span class="key">kind</span>, &nbsp;
+      <span class="key">role</span>, &nbsp;
+      <span class="key">choreoId</span>, &nbsp;
+      <span class="key">payload</span>, &nbsp;
+      <span class="key">sig</span> <span style="opacity:0.4">= ed25519(body, privkey)</span>, &nbsp;
+      <span class="key">prevId</span> <span style="opacity:0.4">= SHA-256(prevEntry)</span>, &nbsp;
+      <span class="key">ts</span>
+    </div>
+    <div class="log-note">
+      Every entry is signed with the role's ed25519 private key.<br>
+      prevId chains each entry to the last — any tampering breaks the hash chain.<br>
+      Snapshot uploaded to 0G after run completion · verifiable with <span style="color:var(--cream);opacity:0.7;">swati verify --uri</span>
+    </div>
+  </div>
+
+</body>
+</html>

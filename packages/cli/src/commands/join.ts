@@ -2,6 +2,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { join as pathJoin } from "node:path";
 import { homedir } from "node:os";
 import { ui } from "../ui.js";
+import { resolveSwatiWalletKey } from "../env-wallet.js";
 import {
   loadIdentityFromFile,
   loadIdentityFromHex,
@@ -31,7 +32,13 @@ export interface JoinOptions {
   input?: string;
 }
 
-export async function runJoin(opts: JoinOptions): Promise<void> {
+export async function runJoin(raw: JoinOptions): Promise<void> {
+  const { walletKey: _rawWk, ...rest } = raw;
+  const wk = resolveSwatiWalletKey(raw.walletKey);
+  const opts: JoinOptions = {
+    ...rest,
+    ...(wk !== undefined ? { walletKey: wk } : {}),
+  };
   const isOnchain = opts.target.startsWith("0x") && opts.target.length === 66;
 
   const spinner = ui.spinner("Loading choreography…");
@@ -44,8 +51,10 @@ export async function runJoin(opts: JoinOptions): Promise<void> {
 
   if (isOnchain) {
     if (!opts.walletKey) {
-      spinner.fail("--wallet-key is required for on-chain choreoId");
-      ui.dim("  swati join 0x<choreoId> --role <role> --wallet-key $WALLET_KEY");
+      spinner.fail(
+        "On-chain choreoId requires a wallet key (set SWATI_WALLET_KEY or ZEROG_PRIVATE_KEY, or use --wallet-key)",
+      );
+      ui.dim("  swati join 0x<choreoId> --role <role>  # with env above");
       process.exit(1);
     }
 

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Swati — DSL Primitives</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --brand:      #D45435;
+    --brand-mid:  #C3492B;
+    --brand-dark: #AD3B1F;
+    --cream:      #EBE6CF;
+    --near-white: #FFFBEB;
+    --dark:       #110a07;
+    --font: 'Source Code Pro', 'Menlo', monospace;
+  }
+  body {
+    background: var(--dark);
+    font-family: var(--font);
+    color: var(--near-white);
+    padding: 60px 80px;
+  }
+  .page-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--brand);
+    margin-bottom: 8px;
+  }
+  .page-subtitle {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--near-white);
+    margin-bottom: 60px;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── TABLE HEADER ── */
+  .prim-table {
+    width: 100%;
+    max-width: 1100px;
+    border-collapse: collapse;
+  }
+  .prim-table thead tr {
+    border-bottom: 2px solid rgba(212,84,53,0.4);
+  }
+  .prim-table th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--cream);
+    opacity: 0.45;
+    padding: 0 0 14px 0;
+    text-align: left;
+  }
+  .prim-table th:first-child { width: 220px; }
+  .prim-table th:nth-child(2) { width: 220px; }
+  .prim-table th:nth-child(3) { width: 260px; }
+
+  .prim-table tbody tr {
+    border-bottom: 1px solid rgba(235,230,207,0.07);
+    transition: background 0.1s;
+  }
+  .prim-table tbody tr:hover {
+    background: rgba(235,230,207,0.03);
+  }
+  .prim-table td {
+    padding: 22px 0;
+    padding-right: 32px;
+    vertical-align: top;
+  }
+
+  .td-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #e5c07b;
+    line-height: 1.3;
+  }
+  .td-name .sig {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.45;
+    display: block;
+    margin-top: 4px;
+  }
+  .td-executor {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--near-white);
+    opacity: 0.8;
+    line-height: 1.5;
+  }
+  .td-executor .role-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--brand);
+    opacity: 0.9;
+    margin-right: 6px;
+  }
+  .td-others {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.55;
+    line-height: 1.5;
+  }
+  .td-note {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.4;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  /* category separators */
+  .cat-row td {
+    padding: 32px 0 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--brand);
+    opacity: 0.6;
+    border-bottom: none;
+  }
+  .cat-row:hover { background: transparent !important; }
+
+  /* ── ADAPTER NOTE ── */
+  .adapter-note {
+    max-width: 1100px;
+    margin-top: 60px;
+    border: 1px solid rgba(235,230,207,0.1);
+    background: rgba(235,230,207,0.02);
+    padding: 32px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .adapter-note-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cream);
+    opacity: 0.45;
+  }
+  .adapter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .adapter-col-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .adapter-col-label.dev  { color: #98c379; opacity: 0.8; }
+  .adapter-col-label.prod { color: var(--brand); opacity: 0.8; }
+  .adapter-items {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .adapter-item {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--cream);
+    opacity: 0.65;
+    line-height: 1.4;
+  }
+  .adapter-item .k { color: var(--near-white); opacity: 0.8; }
+  .adapter-foot {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--cream);
+    opacity: 0.5;
+    font-style: italic;
+    border-top: 1px solid rgba(235,230,207,0.08);
+    padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="page-title">Swati Architecture</div>
+  <div class="page-subtitle">DSL Primitives</div>
+
+  <table class="prim-table">
+    <thead>
+      <tr>
+        <th>Primitive</th>
+        <th>Who executes</th>
+        <th>Others</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- CORE -->
+      <tr class="cat-row"><td colspan="4">Core messaging</td></tr>
+
+      <tr>
+        <td class="td-name">roles.X.do()
+          <span class="sig">role, prompt → unknown</span>
+        </td>
+        <td class="td-executor"><span class="role-tag">Role X</span>LLM call with prompt</td>
+        <td class="td-others">Skip — returns undefined</td>
+        <td class="td-note">Only role X's Conductor sends to LLM</td>
+      </tr>
+
+      <tr>
+        <td class="td-name">send(v, A, B)
+          <span class="sig">value, from, to</span>
+        </td>
+        <td class="td-executor">
+          <span class="role-tag">Role A</span>Sign + emit via transport<br>
+          <span class="role-tag">Role B</span>Block until recv, verify sig
+        </td>
+        <td class="td-others">Skip — line is invisible</td>
+        <td class="td-note">Guaranteed delivery. Typed. Every send has a matching recv.</td>
+      </tr>
+
+      <!-- BRANCHING -->
+      <tr class="cat-row"><td colspan="4">Branching</td></tr>
+
+      <tr>
+        <td class="td-name">choose(R, opts)
+          <span class="sig">role, options, evidence</span>
+        </td>
+        <td class="td-executor"><span class="role-tag">Role R</span>LLM call → broadcast result to ALL</td>
+        <td class="td-others">Await broadcast · branch identically on received value</td>
+        <td class="td-note">No divergence possible. All roles see the same value.</td>
+      </tr>
+
+      <tr>
+        <td class="td-name">chooseIf(R, bool)
+          <span class="sig">role, boolean</span>
+        </td>
+        <td class="td-executor"><span class="role-tag">Role R</span>Broadcast boolean to ALL</td>
+        <td class="td-others">Await broadcast · branch identically</td>
+        <td class="td-note">Boolean branch without LLM call</td>
+      </tr>
+
+      <tr>
+        <td class="td-name">locally(R, fn)
+          <span class="sig">role, fn → Located&lt;T&gt;</span>
+        </td>
+        <td class="td-executor"><span class="role-tag">Role R</span>fn() → Located&lt;T&gt; with value</td>
+        <td class="td-others">Located&lt;T&gt; with undefined — opaque</td>
+        <td class="td-note">Role-private computation. Pass to send() to transfer.</td>
+      </tr>
+
+      <!-- ACTIONS -->
+      <tr class="cat-row"><td colspan="4">Actions</td></tr>
+
+      <tr>
+        <td class="td-name">gate(R, p, fn)
+          <span class="sig">role, provider, fn</span>
+        </td>
+        <td class="td-executor"><span class="role-tag">Role R</span>Call Gate Provider · await proof · log proof · broadcast</td>
+        <td class="td-others">Skip / wait for broadcast</td>
+        <td class="td-note">result.ok only true if proof issued. Irreversible.</td>
+      </tr>
+
+      <tr>
+        <td class="td-name">computeSend(A, B, fn)
+          <span class="sig">from, to, fn</span>
+        </td>
+        <td class="td-executor"><span class="role-tag">Role A</span>fn() + send in one step</td>
+        <td class="td-others">Role B: recv</td>
+        <td class="td-note">Compute and send atomically</td>
+      </tr>
+
+      <!-- COMPOSITION -->
+      <tr class="cat-row"><td colspan="4">Composition &amp; state</td></tr>
+
+      <tr>
+        <td class="td-name">invoke(sub, input)
+          <span class="sig">choreography, input</span>
+        </td>
+        <td class="td-executor">All roles run sub-choreography</td>
+        <td class="td-others">Roles not in sub simply wait</td>
+        <td class="td-note">sub must be a subset of current roles</td>
+      </tr>
+
+      <tr>
+        <td class="td-name">persist(k, v)
+          <span class="sig">key, value</span>
+        </td>
+        <td class="td-executor">All — write shared state</td>
+        <td class="td-others">—</td>
+        <td class="td-note">Survives across runs via storage adapter</td>
+      </tr>
+
+      <tr>
+        <td class="td-name">recall(k)
+          <span class="sig">key → value</span>
+        </td>
+        <td class="td-executor">All — read shared state</td>
+        <td class="td-others">—</td>
+        <td class="td-note">Reads what persist() wrote</td>
+      </tr>
+
+      <tr>
+        <td class="td-name">recurse(input)
+          <span class="sig">input</span>
+        </td>
+        <td class="td-executor">All — restart flow with new input</td>
+        <td class="td-others">—</td>
+        <td class="td-note">Loop without stack overflow</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- ADAPTER NOTE -->
+  <div class="adapter-note">
+    <div class="adapter-note-title">Adapter swap — same choreography, any stack</div>
+    <div class="adapter-grid">
+      <div>
+        <div class="adapter-col-label dev">Dev / Test</div>
+        <div class="adapter-items">
+          <div class="adapter-item"><span class="k">transport:</span> InMemoryTransport — single process</div>
+          <div class="adapter-item"><span class="k">resolver:</span> StaticResolver — hard-coded pubkeys</div>
+          <div class="adapter-item"><span class="k">storage:</span> LocalFileStorage — local disk</div>
+          <div class="adapter-item"><span class="k">llm:</span> MockLLM — scripted responses</div>
+          <div class="adapter-item"><span class="k">gates:</span> LocalGate — local mock</div>
+        </div>
+      </div>
+      <div>
+        <div class="adapter-col-label prod">Production</div>
+        <div class="adapter-items">
+          <div class="adapter-item"><span class="k">transport:</span> WireChannel — AXL mesh, binary wire</div>
+          <div class="adapter-item"><span class="k">resolver:</span> EnsResolver / OnChainRegistryResolver</div>
+          <div class="adapter-item"><span class="k">storage:</span> BlobVault — 0G decentralised</div>
+          <div class="adapter-item"><span class="k">llm:</span> AnthropicLLM — Claude Sonnet</div>
+          <div class="adapter-item"><span class="k">gates:</span> KeeperHubGate · UniswapGate</div>
+        </div>
+      </div>
+    </div>
+    <div class="adapter-foot">The choreography file doesn't change. Only the config changes.</div>
+  </div>
+
+  <div style="height:60px;"></div>
+</body>
+</html>

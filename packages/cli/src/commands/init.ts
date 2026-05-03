@@ -70,8 +70,30 @@ export default choreography("${name}", {
 }
 `;
 
+  const runDemo = `// run-demo.mjs — run all roles in one process (vanilla / local mode)
+// Usage: node run-demo.mjs
+import { simulate } from "@swati/core";
+import { MockLLM } from "@swati/core/adapters";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+
+const { default: choreo } = await import(
+  pathToFileURL(new URL("./${name}.choreo.ts", import.meta.url).pathname).href
+);
+
+const result = await simulate(choreo, {
+  input: { topic: "hello from swati" },
+  llm: new MockLLM({ responses: ["approved — looks good", "revised plan ready"] }),
+});
+
+for (const [role, outcome] of Object.entries(result)) {
+  console.log(\`[\${role}]\`, outcome.ok ? JSON.stringify(outcome.value) : outcome.error?.message);
+}
+`;
+
   writeFileSync("swati.config.vanilla.ts", vanillaConfig, "utf-8");
   writeFileSync(`${name}.choreo.ts`, choreoTemplate, "utf-8");
+  writeFileSync("run-demo.mjs", runDemo, "utf-8");
 
   if (!existsSync("identities.json")) {
     writeFileSync("identities.json", identities, "utf-8");
@@ -83,8 +105,10 @@ export default choreography("${name}", {
   ui.dim(`  ${name}.choreo.ts       — choreography definition`);
   ui.dim(`  swati.config.vanilla.ts — vanilla configuration`);
   ui.dim(`  identities.json         — role identities (vanilla)`);
+  ui.dim(`  run-demo.mjs            — run all roles locally (no AXL needed)`);
   ui.dim("");
-  ui.info(`Run: swati run --role role-a --score ${name}.choreo.ts`);
+  ui.info(`Quick start:  node run-demo.mjs`);
+  ui.dim(`Production:   swati run --role role-a --score ${name}.choreo.ts`);
 }
 
 async function runInitFromChain(options: InitOptions): Promise<void> {

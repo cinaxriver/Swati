@@ -1,0 +1,14 @@
+{
+  "prosecutor": {
+    "pubkey": "0",
+    "transportId": "prosecutor"
+  },
+  "defender": {
+    "pubkey": "0",
+    "transportId": "defender"
+  },
+  "judge": {
+    "pubkey": "0",
+    "transportId": "judge"
+  }
+}

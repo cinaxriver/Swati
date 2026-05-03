@@ -1,0 +1,29 @@
+{
+  "name": "@swati/resolver-onchain",
+  "version": "0.1.0",
+  "description": "On-chain registry resolver for swati — reads role pubkeys + AXL peer IDs from SwatiRegistry.sol",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --out-dir dist",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@swati/core": "workspace:*",
+    "@swati/registry-onchain": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0",
+    "tsup": "^8.2.0",
+    "vitest": "^2.0.0"
+  }
+}
