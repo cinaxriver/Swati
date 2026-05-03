@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { runInit } from "./commands/init.js";
 import { runKeygen } from "./commands/keygen.js";
 import { runPublish } from "./commands/publish.js";
 import { runJoin } from "./commands/join.js";
 import { runRun } from "./commands/run.js";
 import { runDaemon } from "./commands/daemon.js";
 import { runVerify } from "./commands/verify.js";
+import { runVisualize } from "./commands/visualize.js";
+import { runWatch } from "./commands/watch.js";
+import { runMint } from "./commands/mint.js";
 import {
   runRegistryRegister,
   runRegistryRegisterRole,
@@ -40,6 +44,26 @@ program
     ].join("\n"),
   )
   .version("0.1.0");
+
+program
+  .command("init")
+  .description("Scaffold a new choreography project in the current directory")
+  .option("--name <name>", "choreography name", "my-choreo")
+  .option("--choreo-id <id>", "bootstrap from an on-chain choreoId (0x…)")
+  .option("--network <net>", "mainnet or sepolia", "sepolia")
+  .option("--rpc-url <url>", "custom RPC endpoint")
+  .option("--contract-address <addr>", "override registry contract address")
+  .action(
+    async (opts: {
+      name?: string;
+      choreoId?: string;
+      network?: string;
+      rpcUrl?: string;
+      contractAddress?: string;
+    }) => {
+      await runInit(opts);
+    },
+  );
 
 program
   .command("keygen")
@@ -141,6 +165,10 @@ program
   .option("--config <file>", "swati config file")
   .option("--input <json>", "JSON-encoded input")
   .option("--identity-file <path>", "identity JSON file")
+  .option(
+    "--peer-timeout-ms <ms>",
+    "peer-wait timeout in ms (default 30000; increase when using 0G storage)",
+  )
   .option("--json", "output as JSON")
   .action(
     async (opts: {
@@ -150,9 +178,12 @@ program
       config?: string;
       input?: string;
       identityFile?: string;
+      peerTimeoutMs?: string;
       json?: boolean;
     }) => {
-      await runRun(opts);
+      const { peerTimeoutMs: rawMs, ...rest } = opts;
+      const peerTimeoutMs = rawMs ? parseInt(rawMs, 10) : undefined;
+      await runRun({ ...rest, ...(peerTimeoutMs !== undefined ? { peerTimeoutMs } : {}) });
     },
   );
 
@@ -174,6 +205,36 @@ program
   .option("--json", "output as JSON")
   .action(async (uri: string, opts: { config?: string; json?: boolean }) => {
     await runVerify({ uri, ...opts });
+  });
+
+program
+  .command("visualize")
+  .description("Render a sequence diagram of a choreography")
+  .requiredOption("--score <file>", "choreography .choreo.ts file")
+  .option("--format <fmt>", "ascii or mermaid (default: ascii)")
+  .option("--mermaid-out <file>", "write mermaid diagram to file")
+  .action(async (opts: { score: string; format?: string; mermaidOut?: string }) => {
+    await runVisualize(opts);
+  });
+
+program
+  .command("watch")
+  .description("Watch a choreography file and tail its live log")
+  .requiredOption("--score <file>", "choreography .choreo.ts file")
+  .option("--role <name>", "filter log to a specific role")
+  .option("--config <file>", "swati config file")
+  .action(async (opts: { score: string; role?: string; config?: string }) => {
+    await runWatch(opts);
+  });
+
+program
+  .command("mint")
+  .description("Mint a choreography as an iNFT (ERC-7857) on 0G")
+  .requiredOption("--uri <uri>", "manifest URI (0g:// or file://)")
+  .option("--config <file>", "swati config file")
+  .option("--json", "output as JSON")
+  .action(async (opts: { uri: string; config?: string; json?: boolean }) => {
+    await runMint(opts);
   });
 
 const reg = program

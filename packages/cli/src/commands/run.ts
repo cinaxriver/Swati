@@ -18,6 +18,8 @@ export interface RunOptions {
   input?: string;
   json?: boolean;
   identityFile?: string;
+
+  peerTimeoutMs?: number;
 }
 
 export async function runRun(opts: RunOptions): Promise<void> {
@@ -169,6 +171,7 @@ export async function runRun(opts: RunOptions): Promise<void> {
     storage: cfg.storage,
     gateProviders: cfg.gates,
     llm: cfg.llm,
+    ...(opts.peerTimeoutMs !== undefined ? { peerTimeoutMs: opts.peerTimeoutMs } : {}),
   });
 
   const shutdown = async (code = 1) => {
