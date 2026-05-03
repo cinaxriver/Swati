@@ -6,6 +6,10 @@ Most multi-agent AI systems are held together with shared state, manual retries,
 
 Under the hood, every act is ed25519-signed and hash-chained (Secure Scuttlebutt-style). Every branch is broadcast to all roles so they always agree on which path was taken. Gated actions are irreversible by design — wrap a Uniswap swap or an on-chain call in `gate()` and it either happens with a proof or not at all.
 
+### Architecture diagrams
+
+The [`architecture/`](architecture/) directory contains diagrams you can reuse in overview: [system overview](architecture/system-overview.png), [network topology](architecture/network-topology.png), [Conductor internals](architecture/conductor-internals.png), [DSL primitives](architecture/dsl-primitives.png), and [lifecycle](architecture/lifecycle.png). 
+
 ---
 
 ## How it works
@@ -13,30 +17,64 @@ Under the hood, every act is ed25519-signed and hash-chained (Secure Scuttlebutt
 You write a `flow` function over a `ChoreoContext`. That function *is* the global protocol — Swati projects it down to each agent at runtime.
 
 ```ts
-// example shape (see examples/research-collab/score.choreo.ts for a full loop)
+// aligned with examples/research-collab/score.choreo.ts (shorter prompts)
 import { choreography } from "@swati/core";
 
-export default choreography("research-collab", {
-  roles: ["researcher", "critic", "executor"],
+export interface ResearchInput {
+  topic: string;
+  maxIterations?: number;
+}
 
-  async flow(c) {
-    const proposal = await c.roles.researcher.do(`Write a proposal for: "${c.input.topic}"`);
-    await c.send(proposal, "researcher", "critic");
+export default choreography<ResearchInput, { result: string; iterations: number }>(
+  "research-collab",
+  {
+    roles: ["researcher", "critic", "executor"],
 
-    const review = await c.roles.critic.do(`APPROVE or REVISE:\n${proposal}`);
-    await c.send(review, "critic", "executor");
+    async flow(c) {
+      const { researcher, critic } = c.roles;
+      let iterations = 0;
+      const maxIter = c.input.maxIterations ?? 3;
 
-    const decision = await c.choose("critic", ["approve", "revise"], review);
+      let proposal = (await researcher.do(
+        `Concise proposal for "${c.input.topic}". Proposal text only.`,
+      )) as string;
 
-    if (decision === "approve") {
-      const result = await c.gate("executor", "local", async () =>
-        c.roles.executor.do(`Execute this proposal:\n${proposal}`),
-      );
-      await c.persist("last-result", result);
-      return result;
-    }
+      await c.send(proposal, "researcher", "critic");
+
+      while (iterations < maxIter) {
+        iterations++;
+
+        const review = (await critic.do(
+          `APPROVE or REVISE?\nProposal:\n${proposal}`,
+        )) as string;
+
+        await c.send(review, "critic", "researcher");
+        await c.send(review, "critic", "executor");
+
+        const decision = await c.choose("critic", ["approve", "revise"] as const, review);
+
+        if (decision === "approve") {
+          const executionResult = await c.gate("executor", "local", async () =>
+            c.roles.executor.do(`Summarize executing:\n${proposal}`),
+          );
+          const summary = executionResult.ok
+            ? String(executionResult.value)
+            : "execution failed";
+
+          await c.persist("last-result", summary);
+          return { result: summary, iterations };
+        }
+
+        proposal = (await researcher.do(
+          `Revise proposal from feedback:\n${review}\nOriginal:\n${proposal}`,
+        )) as string;
+        await c.send(proposal, "researcher", "critic");
+      }
+
+      return { result: proposal, iterations };
+    },
   },
-});
+);
 ```
 
 Run each role separately — on the same machine or across the network:
